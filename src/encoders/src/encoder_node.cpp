@@ -2,11 +2,12 @@
 
 void EncoderNode::timer_callback()
 {
-    auto message = interfaces::msg::StampedFloat32();
+    auto message = sensor_msgs::msg::JointState();
     message.header.stamp = this->now();
     message.header.frame_id = this->get_name();
-    message.val = this->_encoder.getPosition();
-    RCLCPP_DEBUG(this->get_logger(), "Publishing: '%f'", message.val);
+    message.position = {this->_encoder.getPosition(), 0, 0, 0};
+    for(int i = 0; i < 4 ;i++) message.name.push_back(this->_NAMES[i]);
+
     this->_publisher->publish(message);
 }
 

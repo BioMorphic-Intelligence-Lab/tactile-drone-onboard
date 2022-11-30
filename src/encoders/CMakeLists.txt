@@ -8,11 +8,11 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 add_executable(encoder_node src/encoder_node.cpp
                             src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
-ament_target_dependencies(encoder_node rclcpp interfaces)
+ament_target_dependencies(encoder_node rclcpp sensor_msgs)
 target_link_libraries(encoder_node ${catkin_LIBRARIES} -lwiringPi)
 target_include_directories(encoder_node PUBLIC include/encoders src/cui-devices-amt-10x-driver)
 
