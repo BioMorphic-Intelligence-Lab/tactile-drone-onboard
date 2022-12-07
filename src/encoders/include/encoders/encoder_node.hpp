@@ -25,7 +25,7 @@ class EncoderNode : public rclcpp::Node
       this->declare_parameter("encoder3_pins", std::vector<int>{26, 27, 25});
 
       // Frequency in which to publish the current joint state
-      this->declare_parameter("state_pub_fr", 200);
+      this->declare_parameter("state_pub_fr", 24);
 
       /* Read out all the parameters */
       uint16_t ppr = this->get_parameter("ppr").as_int();
@@ -35,25 +35,24 @@ class EncoderNode : public rclcpp::Node
                                                  this->get_parameter("encoder1_pins").as_integer_array(),
                                                  this->get_parameter("encoder2_pins").as_integer_array(),
                                                  this->get_parameter("encoder3_pins").as_integer_array()};
+      // Convert to classic arrays
+      uint8_t A[4] = {uint8_t(pins[0][0]), uint8_t(pins[1][0]), uint8_t(pins[2][0]), uint8_t(pins[3][0])};
+      uint8_t B[4] = {uint8_t(pins[0][1]), uint8_t(pins[1][1]), uint8_t(pins[2][1]), uint8_t(pins[3][1])};
+      uint8_t X[4] = {uint8_t(pins[0][2]), uint8_t(pins[1][2]), uint8_t(pins[2][2]), uint8_t(pins[3][2])};
 
       uint16_t f = this->get_parameter("state_pub_fr").as_int();
 
       /* Init all the class members */
       this->_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
-      this->_timer = this->create_wall_timer(std::chrono::milliseconds(int(10e3 * 1.0 / f)), std::bind(&EncoderNode::timer_callback, this));
+      this->_timer = this->create_wall_timer(std::chrono::milliseconds(int(1e3 * 1.0 / f)), std::bind(&EncoderNode::timer_callback, this));
 
-      for(uint8_t i = 0; i < pins.size(); i++)
-      {
-        /* Init Encoder Driver instances */
-        this->_encoders[i] = new Cui_Devices_Amt10x(i, ppr, pins[i][0], pins[i][1], pins[i][2]);
-      }
+
+      /* Init Encoder Driver instances */
+      this->_encoders = new Cui_Devices_Amt10x(4, ppr, A, B, X);
 
       /* Start the encoders */
-      for(uint8_t i = 0; i < pins.size(); i++)
-      {
-        /* Init Encoder Driver instances */
-        this->_encoders[i]->begin();
-      }
+      this->_encoders->begin();
+      
     }
 
   private:
@@ -63,6 +62,6 @@ class EncoderNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr _timer;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr _publisher;
 
-    Cui_Devices_Amt10x* _encoders[4];
+    Cui_Devices_Amt10x* _encoders;
 
 };

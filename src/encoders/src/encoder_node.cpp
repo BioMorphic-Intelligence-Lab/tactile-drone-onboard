@@ -5,9 +5,15 @@ void EncoderNode::timer_callback()
     auto message = sensor_msgs::msg::JointState();
     message.header.stamp = this->now();
     message.header.frame_id = this->get_name();
-    for(int i = 0; i < 4 ;i++)
+    
+    float pos[4] = {}, vel[4] = {0.0,0.0,0.0,0.0};
+    this->_encoders->getPosition(pos);
+    this->_encoders->getVelocity(vel);
+
+    for(int i = 0; i < 4; i++)
     {
-        message.position.push_back(i == 3 ? -this->_encoders[i]->getPosition() : this->_encoders[i]->getPosition());
+        message.position.push_back(i == 3 ? -pos[i] : pos[i]);
+        message.velocity.push_back(vel[i]);
         message.name.push_back(this->_NAMES[i]);
     }
 
