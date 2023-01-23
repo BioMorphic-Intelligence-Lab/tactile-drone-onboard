@@ -26,6 +26,7 @@ void ForceEstimatorNode::force_timer_callback()
     message.header.stamp = this->now();
     message.header.frame_id = this->get_name();
 
+    // TODO extract the actual contact force estimate
     message.wrench.force.x = 0.0;
     message.wrench.force.y = 0.0;
     message.wrench.force.z = 0.0;
@@ -33,6 +34,8 @@ void ForceEstimatorNode::force_timer_callback()
     message.wrench.torque.x = 0.0;
     message.wrench.torque.y = 0.0;
     message.wrench.torque.z = 0.0;
+
+    this->_force_publisher->publish(message);
 }
 
 int main(int argc, char * argv[])
