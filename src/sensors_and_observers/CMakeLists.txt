@@ -11,6 +11,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 ########### Executable for encoder node #######################
 add_executable(encoder_node src/encoder_node.cpp
@@ -20,16 +21,16 @@ target_link_libraries(encoder_node ${catkin_LIBRARIES} -lwiringPi)
 target_include_directories(encoder_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
 
 ########### Executable for force estimator ######################
-add_executable(force_estimator src/force_estimator.cpp
-                               src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
-ament_target_dependencies(force_estimator rclcpp sensor_msgs)
-target_link_libraries(force_estimator ${catkin_LIBRARIES} -lwiringPi)
-target_include_directories(force_estimator PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
+add_executable(force_estimator_node src/force_estimator_node.cpp
+                                    src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
+ament_target_dependencies(force_estimator_node rclcpp sensor_msgs)
+target_link_libraries(force_estimator_node ${catkin_LIBRARIES} -lwiringPi)
+target_include_directories(force_estimator_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
 
 ########### Add Targets #################
 install(TARGETS
   encoder_node
-  force_estimator
+  force_estimator_node
   DESTINATION lib/${PROJECT_NAME})
 
 
