@@ -1,8 +1,25 @@
 #include "force_estimator_node.hpp"
 
-void ForceEstimatorNode::_estimate_force(float *pos, float *vel)
-{
-    
+void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
+                                         float tendon_force)
+{ 
+    /* We're computing the external force based on the systems dynamic model, 
+     * however since we assume the motion of the overall system is slow the 
+     * inertia, corioles and damping contributions are negligible. Thus the
+     * external force is computed via:
+     *      f_ee = PI(J_ee(q)^T) (G(q) + K(q) - A*tau)
+     * where
+     *      q is the current arm configuration
+     *      PI is the pseudo inverse
+     *      J_ee(q) is the ee-Jacobian
+     *      G(q) is the gravity contribution
+     *      K(q) is the stiffness contribution
+     *      A is the input mapping matrix
+     *      tau is the force applied on the tendon
+     * */
+
+
+
 }
 
 void ForceEstimatorNode::_run()
@@ -14,8 +31,11 @@ void ForceEstimatorNode::_run()
         this->_encoders->getPosition(pos);
         this->_encoders->getVelocity(vel);
 
+        /* Get the currently applied tendon force */
+        float tendon_force = 0.0; // TODO actually get the force
+
         /* Compute the estimated contact force and store in class var */
-        this->_estimate_force(pos, vel);
+        this->_estimate_force(pos, vel, tendon_force);
 
     }
 }

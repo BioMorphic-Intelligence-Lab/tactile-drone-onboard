@@ -75,7 +75,8 @@ private:
   const std::string _NAMES[4];
   void _joint_timer_callback();
   void _force_timer_callback();
-  void _estimate_force(float *pos, float *vel);
+  void _estimate_force(float *pos, float *vel,
+                       float tendon_force);
   void _run();
   void _begin();
   void _get_force(std::vector<double> & force);
