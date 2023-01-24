@@ -1,0 +1,24 @@
+encoder_node:
+  ros__parameters:
+    ppr: 2048 # Pulses per revolution 
+    encoder0_pins: [0, 2, 3] 
+    encoder1_pins: [1, 4, 5]
+    encoder2_pins: [21, 22, 23]
+    encoder3_pins: [26, 27, 25]
+    state_pub_fr: 24 # Publish frequency [fps]
+force_estimator:
+  ros__parameters:
+    encoder_config:
+      ppr: 2048 # Pulses per revolution 
+      encoder0_pins: [0, 2, 3]
+      encoder1_pins: [1, 4, 5]
+      encoder2_pins: [21, 22, 23]
+      encoder3_pins: [26, 27, 25]
+      joint_pub_fr: 24  # Publish frequency Joints [fps]
+    force_pub_fr: 24 # Publish frequency force [fps]
+    arm_properties:
+      m: [1, 1, 1, 1] # Link Mass [kg]
+      l: [1, 1, 1, 1] # Link Length [m]
+      k: [1, 1, 1, 1] # Joint stiffness [Nm / rad]
+      r: [1, 1, 1] # Distance of tendon to arm center [m]
+

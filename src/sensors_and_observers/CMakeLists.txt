@@ -33,6 +33,17 @@ install(TARGETS
   force_estimator_node
   DESTINATION lib/${PROJECT_NAME})
 
+########### Add Launch Directory ########
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+########## Add Config Directory #########
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
