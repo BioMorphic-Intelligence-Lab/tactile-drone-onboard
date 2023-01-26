@@ -1,1 +1,4 @@
 
+[submodule "src/sensors_and_observers/src/cui-devices-amt-10x-driver"]
+	path = src/sensors_and_observers/src/cui-devices-amt-10x-driver
+	url = git@github.com:BioMorphic-Intelligence-Lab/cui-devices-amt-10x-driver.git
