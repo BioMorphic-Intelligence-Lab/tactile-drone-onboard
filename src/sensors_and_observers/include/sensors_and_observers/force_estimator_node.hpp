@@ -88,7 +88,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr _force_publisher;
 
   Cui_Devices_Amt10x *_encoders;
-  std::vector<double> _force = {0.0, 0.0, 0.0};
+  std::vector<double> _force = {1.0, 0.0, 0.0};
 
   /* Arm properties*/
   std::vector<double> _m, _l, _k, _r;

@@ -81,10 +81,10 @@ void ForceEstimatorNode::_force_timer_callback()
 {
     auto message = geometry_msgs::msg::WrenchStamped();
     message.header.stamp = this->now();
-    message.header.frame_id = this->get_name();
+    message.header.frame_id = "ee";
 
     /* Get the currently estimated force */
-    std::vector<double> force = {0.0,0.0,0.0};
+    std::vector<double> force(3);
     this->_get_force(force);
 
     /* Pack the force into the message.
