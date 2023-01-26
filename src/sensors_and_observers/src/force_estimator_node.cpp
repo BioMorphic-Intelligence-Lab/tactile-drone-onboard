@@ -84,15 +84,15 @@ void ForceEstimatorNode::_force_timer_callback()
     message.header.frame_id = this->get_name();
 
     /* Get the currently estimated force */
-    std::vector<double> force(3);
+    std::vector<double> force = {0.0,0.0,0.0};
     this->_get_force(force);
 
     /* Pack the force into the message.
      * The torque is assumed to be zero, thus
      * doesn't need to be filled explicitely */
     message.wrench.force.x = force.at(0);
-    message.wrench.force.y = force.at(0);
-    message.wrench.force.z = force.at(0);
+    message.wrench.force.y = force.at(1);
+    message.wrench.force.z = force.at(2);
     
     /* Actually publish the message */
     this->_force_publisher->publish(message);
