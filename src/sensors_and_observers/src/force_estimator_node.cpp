@@ -18,8 +18,85 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
      *      tau is the force applied on the tendon
      * */
 
+    std::vector<Eigen::Matrix3f> Rs = this->_get_rs(pos);  
+    std::vector<Eigen::Vector3f> coms = this->_get_coms(Rs);
 
+    std::cout << coms.at(0)(0) << " " << coms.at(0)(1) << " " << coms.at(0)(2) << std::endl;
 
+}
+
+std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_coms(std::vector<Eigen::Matrix3f> rs)
+{
+    std::vector<Eigen::Vector3f> coms;
+    for(uint i = 0; i < this->_l.size(); i++)
+    {
+        /* Init translation vector */
+        Eigen::Vector3f com = Eigen::Vector3f::Zero();
+        
+        /* Add the translation of all previous links */
+        for(uint j = 0; j < i; j++)
+        {
+            Eigen::Vector3f bar;
+            bar << 0, 0, - this->_l[j];
+            com += rs.at(j) * bar;
+        }
+
+        /* Add half bar length translation to the CoM */
+        Eigen::Vector3f half_bar;
+        half_bar << 0, 0, - 0.5 * this->_l[i];
+        com+= rs.at(i) * half_bar;
+
+        /* Push back into vector*/
+        coms.push_back(com);
+    }
+    /* Return collection of coms */
+    return coms;
+}
+
+Eigen::Matrix3f ForceEstimatorNode::_rot_x(double theta)
+{
+    float sT = sin(theta);
+    float cT = cos(theta);
+
+    Eigen::Matrix3f rot;
+    rot << 1,  0,   0,
+           0, cT, -sT,
+           0, sT,  cT;
+
+    return rot;
+}
+
+Eigen::Matrix3f ForceEstimatorNode::_rot_y(double theta)
+{
+    float sT = sin(theta);
+    float cT = cos(theta);
+
+    Eigen::Matrix3f rot;
+    rot <<  cT,  0, sT,
+             0,  1,  0,
+           -sT,  0, cT;
+
+    return rot;
+}
+
+std::vector<Eigen::Matrix3f> ForceEstimatorNode::_get_rs(float *pos)
+{
+    /* Init empty vector */
+    std::vector<Eigen::Matrix3f> Rs;
+    
+    /* Add the rotation of the first matrix */
+    Rs.push_back(this->_rot_x(pos[0]));
+
+    /* For each link, push back the current rotation matrix,
+     * which describes its attitude with respect to the base.
+     * Purposefully starting at i = 1 sinze we're doing the first
+     * joint separately before since it has a different rotation axis */
+    for(uint i = 1; i < this->_k.size(); i++)
+    {
+        Rs.push_back(Rs.back() * this->_rot_y(pos[i]));
+    }
+
+    return Rs;
 }
 
 void ForceEstimatorNode::_run()

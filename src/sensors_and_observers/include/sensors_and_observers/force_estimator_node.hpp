@@ -1,5 +1,7 @@
 #include <chrono>
 #include <vector>
+#include <cmath>
+#include <Eigen/Dense>
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
@@ -54,6 +56,8 @@ public:
     this->_k = this->get_parameter("arm_properties.k").as_double_array();
     this->_r = this->get_parameter("arm_properties.r").as_double_array();
 
+    assert(this->_m.size() == this->_l.size());
+
     /* Init all the class members */
     this->_joint_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
     this->_force_publisher = this->create_publisher<geometry_msgs::msg::WrenchStamped>("force", 10);
@@ -80,6 +84,11 @@ private:
   void _run();
   void _begin();
   void _get_force(std::vector<double> & force);
+  Eigen::Matrix3f _rot_x(double theta);
+  Eigen::Matrix3f _rot_y(double theta);
+  std::vector<Eigen::Matrix3f> _get_rs(float *pos);
+  std::vector<Eigen::Vector3f> _get_coms(std::vector<Eigen::Matrix3f> rs);
+
 
   rclcpp::TimerBase::SharedPtr _joint_timer;
   rclcpp::TimerBase::SharedPtr _f_timer;

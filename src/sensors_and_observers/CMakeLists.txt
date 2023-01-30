@@ -12,6 +12,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+########### Add include directory for Eigen ###################
+include_directories(
+  $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>)
 
 ########### Executable for encoder node #######################
 add_executable(encoder_node src/encoder_node.cpp
@@ -23,7 +28,7 @@ target_include_directories(encoder_node PUBLIC include/sensors_and_observers src
 ########### Executable for force estimator ######################
 add_executable(force_estimator_node src/force_estimator_node.cpp
                                     src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
-ament_target_dependencies(force_estimator_node rclcpp sensor_msgs)
+ament_target_dependencies(force_estimator_node rclcpp sensor_msgs Eigen3)
 target_link_libraries(force_estimator_node ${catkin_LIBRARIES} -lwiringPi)
 target_include_directories(force_estimator_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
 
