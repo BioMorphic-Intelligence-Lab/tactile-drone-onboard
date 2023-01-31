@@ -25,10 +25,10 @@ public:
     this->declare_parameter("encoder_config.encoder2_pins", std::vector<int>{21, 22, 23});
     this->declare_parameter("encoder_config.encoder3_pins", std::vector<int>{26, 27, 25});
     // Arm properties
-    this->declare_parameter("arm_properties.m", std::vector<double>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.l", std::vector<double>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.k", std::vector<double>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.r", std::vector<double>{1.0, 1.0, 1.0});
+    this->declare_parameter("arm_properties.m", std::vector<float>{1.0, 1.0, 1.0, 1.0});
+    this->declare_parameter("arm_properties.l", std::vector<float>{1.0, 1.0, 1.0, 1.0});
+    this->declare_parameter("arm_properties.k", std::vector<float>{1.0, 1.0, 1.0, 1.0});
+    this->declare_parameter("arm_properties.r", std::vector<float>{1.0, 1.0, 1.0});
 
     // Frequency in which to publish the current joint state
     this->declare_parameter("encoder_config.joint_pub_fr", 24);
@@ -83,11 +83,23 @@ private:
                        float tendon_force);
   void _run();
   void _begin();
-  void _get_force(std::vector<double> & force);
-  Eigen::Matrix3f _rot_x(double theta);
-  Eigen::Matrix3f _rot_y(double theta);
+  void _get_force(std::vector<float> & force);
+  void _set_force(std::vector<float> force);
+  Eigen::Matrix3f _rot_x(float theta);
+  Eigen::Matrix3f _rot_y(float theta);
   std::vector<Eigen::Matrix3f> _get_rs(float *pos);
+  std::vector<Eigen::Vector3f> _get_joint_locs(std::vector<Eigen::Matrix3f> rs);
   std::vector<Eigen::Vector3f> _get_coms(std::vector<Eigen::Matrix3f> rs);
+  std::vector<Eigen::Vector3f> _get_coms(std::vector<Eigen::Vector3f> joint_locs,
+                                         std::vector<Eigen::Matrix3f> rs);
+
+  Eigen::VectorXf _get_gravity_contribution(std::vector<Eigen::Vector3f> joint_locs,
+                                            std::vector<Eigen::Vector3f> coms,
+                                            std::vector<Eigen::Matrix3f> rs);
+  Eigen::VectorXf _get_stiffness_contribution(float * pos);     
+  Eigen::VectorXf _get_ctrl_contribution(float tendon_force);     
+  Eigen::MatrixXf _get_ee_jacobian(float * pos);                
+                                  
 
 
   rclcpp::TimerBase::SharedPtr _joint_timer;
@@ -97,7 +109,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr _force_publisher;
 
   Cui_Devices_Amt10x *_encoders;
-  std::vector<double> _force = {1.0, 0.0, 0.0};
+  std::vector<float> _force = {1.0, 0.0, 0.0};
 
   /* Arm properties*/
   std::vector<double> _m, _l, _k, _r;

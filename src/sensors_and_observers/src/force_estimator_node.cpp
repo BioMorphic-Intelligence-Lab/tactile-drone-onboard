@@ -18,12 +18,138 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
      *      tau is the force applied on the tendon
      * */
 
-    std::vector<Eigen::Matrix3f> Rs = this->_get_rs(pos);  
-    std::vector<Eigen::Vector3f> coms = this->_get_coms(Rs);
+    /* Extract the needed information from the current joint positions */
+    std::vector<Eigen::Matrix3f> Rs = this->_get_rs(pos);
+    std::vector<Eigen::Vector3f> joints = this->_get_joint_locs(Rs);  
+    std::vector<Eigen::Vector3f> coms = this->_get_coms(joints, Rs);
 
-    std::cout << coms.at(0)(0) << " " << coms.at(0)(1) << " " << coms.at(0)(2) << std::endl;
+    /* Compute the various generalized force contributions */
+    Eigen::Vector4f gravity_cont = this->_get_gravity_contribution(joints, coms, Rs);
+    Eigen::Vector4f stiffness_cont = this->_get_stiffness_contribution(pos); 
+    Eigen::Vector4f ctrl_cont = this->_get_ctrl_contribution(tendon_force);
 
+    /* Compute the current EE-Jacobian */
+    Eigen::MatrixXf J_EE = this->_get_ee_jacobian(pos); 
+
+    /* Compute the force acting on the end effector */
+    Eigen::Vector3f f = J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
+                             * (gravity_cont + stiffness_cont - ctrl_cont);
+
+    std::vector<float> force = {f(0), f(1), f(2)};
+    this->_set_force(force); 
 }
+
+Eigen::MatrixXf ForceEstimatorNode::_get_ee_jacobian(float * pos)
+{
+    /* Store all the sine and cosine value such that we don't have 
+     * to re-compute them all the time */
+    double s[4] = {sin(pos[0]), sin(pos[1]), sin(pos[2]), sin(pos[3])},
+           c[4] = {cos(pos[0]), cos(pos[1]), cos(pos[2]), cos(pos[3])};
+
+    /* Init the jacobian matrix */
+    Eigen::MatrixXf J_ee(3, this->_k.size());
+
+    /* Fill it with values */
+    J_ee << // Effects on ee x
+    this->_l[1]*s[0]*s[1]+this->_l[2]*s[0]*(c[2]*s[1]+c[1]*s[2])+this->_l[3]*s[0]*(c[1]*(c[3]*s[2]+c[2]*s[3])+s[1]*(c[2]*c[3]-s[2]*s[3])),
+	-this->_l[1]*c[0]*c[1]-this->_l[2]*c[0]*(c[1]*c[2]-s[1]*s[2])-this->_l[3]*c[0]*(-s[1]*(c[3]*s[2]+c[2]*s[3])+c[1]*(c[2]*c[3]-s[2]*s[3])),
+    -this->_l[2]*c[0]*(c[1]*c[2]-s[1]*s[2])-this->_l[3]*c[0]*(s[1]*(-c[3]*s[2]-c[2]*s[3])+c[1]*(c[2]*c[3]-s[2]*s[3])),
+    -this->_l[3]*c[0]*(s[1]*(-c[3]*s[2]-c[2]*s[3])+c[1]*(c[2]*c[3]-s[2]*s[3])),
+    
+    // Effects on ee y
+    this->_l[1]*c[0]+this->_l[2]*c[0]+this->_l[3]*c[0]+this->_l[0]*c[0], 0, 0, 0,
+
+    // Effect on ee z
+    this->_l[0]*s[0]+this->_l[1]*c[1]*s[0]+this->_l[2]*s[0]*(c[1]*c[2]-s[1]*s[2])+this->_l[3]*s[0]*(s[1]*(-c[3]*s[2]-c[2]*s[3])+c[1]*(c[2]*c[3]-s[2]*s[3])),
+    this->_l[1]*c[0]*s[1]-this->_l[2]*c[0]*(-c[2]*s[1]-c[1]*s[2])-this->_l[3]*c[0]*(c[1]*(-c[3]*s[2]-c[2]*s[3])-s[1]*(c[2]*c[3]-s[2]*s[3])),
+    -this->_l[2]*c[0]*(-c[2]*s[1]-c[1]*s[2])-this->_l[3]*c[0]*(c[1]*(-c[3]*s[2]-c[2]*s[3])+s[1]*(-c[2]*c[3]+s[2]*s[3])),
+    -this->_l[3]*c[0]*(c[1]*(-c[3]*s[2]-c[2]*s[3])+s[1]*(-c[2]*c[3]+s[2]*s[3]));
+
+    return J_ee;
+}
+
+Eigen::VectorXf ForceEstimatorNode::_get_stiffness_contribution(float * pos)
+{
+    Eigen::VectorXf tau(this->_k.size());
+    for(uint i = 0; i < this->_k.size(); i++)
+    {
+        tau(i) = this->_k.at(i) * pos[i];
+    }
+
+    return tau;
+}
+
+Eigen::VectorXf ForceEstimatorNode::_get_ctrl_contribution(float tendon_force)
+{
+    /* Init the vector. The first joint is passive,
+     * hence the control contribution there is always zero. */
+    Eigen::VectorXf tau(this->_r.size() + 1);
+    tau(0) = 0;
+
+    for(uint i = 1; i < this->_r.size() + 1; i++)
+    {
+        tau(i) = this->_r.at(i) * tendon_force;
+    }
+
+    return tau;
+}
+
+Eigen::VectorXf ForceEstimatorNode::_get_gravity_contribution(std::vector<Eigen::Vector3f> joint_locs,
+                                                              std::vector<Eigen::Vector3f> coms,
+                                                              std::vector<Eigen::Matrix3f> rs)
+{
+    Eigen::VectorXf gravity_contr(rs.size());
+
+    Eigen::Vector3f g;
+    g << 0, 0, - 9.81;
+
+    for(uint i = 0; i < rs.size(); i++)
+    {
+        /* Define the projection vector, i.e. the rotation axis 
+         * of the current joint */
+        Eigen::Vector3f proj;
+        if(i == 0) proj << 1, 0, 0;
+        else proj << 0, 1, 0;
+
+        /* Rotate it accordingly */
+        proj = rs.at(i) * proj;
+
+        /* Add the contribution of each link to the current joint */
+        for(uint j = i; j < rs.size(); j++)
+        {
+            /* Find the torque produced by link j on joint i */
+            Eigen::Vector3f torque = (coms.at(j) - joint_locs.at(i)).cross(this->_m[j] * g);
+
+            /* Not the entire torque has an effect on the joint, but only the component
+             * aligned with the joint axis, i.e. we must project the torque onto the 
+             * revolute axis of the joint. Once projected the scalar torque acting on 
+             * the joint is equivalent to the norm of the projected vector. */
+            gravity_contr(i) += ((torque.dot(proj)) * proj).norm();
+        }
+    }
+
+    /* Finally return the overall generalized contribution */
+    return gravity_contr;
+}                                                              
+
+std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_joint_locs(std::vector<Eigen::Matrix3f> rs)
+{
+    /* Init vector of joint locations. First joint is at [0,0,0] */
+    std::vector<Eigen::Vector3f> joint_locs = {Eigen::Vector3f::Zero()};
+    for(uint i = 0; i < rs.size() - 1; i++)
+    {
+        /* Create vector representing current link length*/
+        Eigen::Vector3f bar;
+        bar << 0, 0, -this->_l[i];
+ 
+        /* Push back the correct location - Last location + correctly rotated link length */
+        joint_locs.push_back(joint_locs.back() + rs.at(i) * bar);
+    }
+
+    /* Return the location of joint position */
+    return joint_locs;
+}
+
 
 std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_coms(std::vector<Eigen::Matrix3f> rs)
 {
@@ -53,7 +179,25 @@ std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_coms(std::vector<Eigen::Ma
     return coms;
 }
 
-Eigen::Matrix3f ForceEstimatorNode::_rot_x(double theta)
+std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_coms(std::vector<Eigen::Vector3f> joint_locs,
+                                                           std::vector<Eigen::Matrix3f> rs)
+{
+    /* Init vector of coms */
+    std::vector<Eigen::Vector3f> coms;
+
+    /* For each joint just add half the link length 
+     * - correctly rotated - to obtain the CoM location */
+    for(uint i = 0; i < rs.size(); i++)
+    {
+        Eigen::Vector3f bar;
+        bar << 0, 0, - 0.5 * this->_l[i];
+        coms.push_back(joint_locs.at(i) + rs.at(i) * bar);
+    }
+
+    return coms;
+}
+
+Eigen::Matrix3f ForceEstimatorNode::_rot_x(float theta)
 {
     float sT = sin(theta);
     float cT = cos(theta);
@@ -66,7 +210,7 @@ Eigen::Matrix3f ForceEstimatorNode::_rot_x(double theta)
     return rot;
 }
 
-Eigen::Matrix3f ForceEstimatorNode::_rot_y(double theta)
+Eigen::Matrix3f ForceEstimatorNode::_rot_y(float theta)
 {
     float sT = sin(theta);
     float cT = cos(theta);
@@ -124,7 +268,16 @@ void ForceEstimatorNode::_begin()
     this->_executer->detach();
 }
 
-void ForceEstimatorNode::_get_force(std::vector<double> & force)
+void ForceEstimatorNode::_set_force(std::vector<float> force)
+{
+    assert(force.size() == this->_force.size());
+    for(uint i = 0; i < force.size(); i++)
+    {
+        this->_force.at(i) = force.at(i);
+    }
+}
+
+void ForceEstimatorNode::_get_force(std::vector<float> & force)
 {
     assert(force.size() == 3);
 
@@ -161,7 +314,7 @@ void ForceEstimatorNode::_force_timer_callback()
     message.header.frame_id = "ee";
 
     /* Get the currently estimated force */
-    std::vector<double> force(3);
+    std::vector<float> force(3);
     this->_get_force(force);
 
     /* Pack the force into the message.
