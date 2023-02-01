@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  tactile-drone:
+    build:
+      context: ./..
+      dockerfile: ./docker/tactile-drone.dockerfile
+    container_name: tactile-drone
+
+
