@@ -18,7 +18,7 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
      *      tau is the force applied on the tendon
      * */
 
-    /* Extract the needed information from the current joint positions */
+    /* Extract the needed information from the current joint positions*/
     std::vector<Eigen::Matrix3f> Rs = this->_get_rs(pos);
     std::vector<Eigen::Vector3f> joints = this->_get_joint_locs(Rs);  
     std::vector<Eigen::Vector3f> coms = this->_get_coms(joints, Rs);
@@ -35,7 +35,7 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
     Eigen::Vector3f f = J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<float> force = {f(0), f(1), f(2)};
+    std::vector<float> force = {1, 0, 0};
     this->_set_force(force); 
 }
 
@@ -88,7 +88,7 @@ Eigen::VectorXf ForceEstimatorNode::_get_ctrl_contribution(float tendon_force)
 
     for(uint i = 1; i < this->_r.size() + 1; i++)
     {
-        tau(i) = this->_r.at(i) * tendon_force;
+        tau(i) = this->_r.at(i-1) * tendon_force;
     }
 
     return tau;
