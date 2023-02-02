@@ -8,8 +8,6 @@ FROM ros:${ROS_DISTRO}-ros-base
 
 # Install additional ros packages and other libraries
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq && apt-get install -y \
-    ros-humble-xacro \
-    ros-humble-joint-state-publisher \
     git \
     make \
     && rm -rf /var/lib/apt/lists/*
@@ -26,6 +24,7 @@ WORKDIR /home/user/ros/TactileDrone/ws
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build
 
 # Add the entrypoint script
-ADD docker/entrypoint.sh /entrypoint.sh
+ADD entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh" ]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
