@@ -35,7 +35,7 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
     Eigen::Vector3f f = J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<float> force = {1, 0, 0};
+    std::vector<float> force = {f(0), f(1), f(2)};
     this->_set_force(force); 
 }
 
