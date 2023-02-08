@@ -17,8 +17,8 @@ force_estimator:
       joint_pub_fr: 24  # Publish frequency Joints [fps]
     force_pub_fr: 24 # Publish frequency force [fps]
     arm_properties:
-      m: [1, 1, 1, 1] # Link Mass [kg]
-      l: [1, 1, 1, 1] # Link Length [m]
-      k: [1, 1, 1, 1] # Joint stiffness [Nm / rad]
-      r: [1, 1, 1] # Distance of tendon to arm center [m]
+      m: [0.005, 0.06, 0.03, 0.01] # Link Mass [kg]
+      l: [0.025, 0.0578, 0.058, 0.045] # Link Length [m]
+      k: [0.1, 0.1, 0.1, 0.1] # Joint stiffness [Nm / rad]
+      r: [0.02, 0.02, 0.015] # Distance of tendon to arm center [m]
 

@@ -25,10 +25,10 @@ public:
     this->declare_parameter("encoder_config.encoder2_pins", std::vector<int>{21, 22, 23});
     this->declare_parameter("encoder_config.encoder3_pins", std::vector<int>{26, 27, 25});
     // Arm properties
-    this->declare_parameter("arm_properties.m", std::vector<float>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.l", std::vector<float>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.k", std::vector<float>{1.0, 1.0, 1.0, 1.0});
-    this->declare_parameter("arm_properties.r", std::vector<float>{1.0, 1.0, 1.0});
+    this->declare_parameter("arm_properties.m", std::vector<float>{0.005, 0.06, 0.03, 0.01});
+    this->declare_parameter("arm_properties.l", std::vector<float>{0.025, 0.0578, 0.058, 0.045});
+    this->declare_parameter("arm_properties.k", std::vector<float>{0.1, 0.1, 0.1, 0.1});
+    this->declare_parameter("arm_properties.r", std::vector<float>{0.02, 0.02, 0.015});
 
     // Frequency in which to publish the current joint state
     this->declare_parameter("encoder_config.joint_pub_fr", 24);

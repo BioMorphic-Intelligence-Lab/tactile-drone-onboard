@@ -320,9 +320,9 @@ void ForceEstimatorNode::_force_timer_callback()
     /* Pack the force into the message.
      * The torque is assumed to be zero, thus
      * doesn't need to be filled explicitely */
-    message.wrench.force.x = force.at(0);
-    message.wrench.force.y = force.at(1);
-    message.wrench.force.z = force.at(2);
+    message.wrench.force.x = -force.at(0);
+    message.wrench.force.y = -force.at(1);
+    message.wrench.force.z = 0.0; //force.at(2);
     
     /* Actually publish the message */
     this->_force_publisher->publish(message);
