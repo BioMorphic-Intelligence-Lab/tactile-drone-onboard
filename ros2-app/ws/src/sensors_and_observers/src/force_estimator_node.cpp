@@ -32,10 +32,10 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
     Eigen::MatrixXf J_EE = this->_get_ee_jacobian(pos); 
 
     /* Compute the force acting on the end effector */
-    Eigen::Vector3f f = J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
+    Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<float> force = {f(0), f(1), f(2)};
+    std::vector<float> force = {f(0), f(1), 0}; /* Z axis cannot bet infered from the joint angles, thus discarded*/
     this->_set_force(force); 
 }
 
@@ -320,9 +320,9 @@ void ForceEstimatorNode::_force_timer_callback()
     /* Pack the force into the message.
      * The torque is assumed to be zero, thus
      * doesn't need to be filled explicitely */
-    message.wrench.force.x = -force.at(0);
-    message.wrench.force.y = -force.at(1);
-    message.wrench.force.z = 0.0; //force.at(2);
+    message.wrench.force.x = force.at(0);
+    message.wrench.force.y = force.at(1);
+    message.wrench.force.z = force.at(2);
     
     /* Actually publish the message */
     this->_force_publisher->publish(message);
