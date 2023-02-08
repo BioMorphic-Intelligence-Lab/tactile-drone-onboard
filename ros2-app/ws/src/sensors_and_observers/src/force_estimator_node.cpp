@@ -1,7 +1,9 @@
 #include "force_estimator_node.hpp"
 
-void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
-                                         float tendon_force)
+std::vector<double> ForceEstimatorNode::_estimate_force(
+            double *pos,
+            double *vel,
+            double tendon_force)
 { 
     /* We're computing the external force based on the systems dynamic model, 
      * however since we assume the motion of the overall system is slow the 
@@ -35,11 +37,11 @@ void ForceEstimatorNode::_estimate_force(float *pos, float *vel,
     Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<float> force = {f(0), f(1), 0}; /* Z axis cannot bet infered from the joint angles, thus discarded*/
-    this->_set_force(force); 
+    std::vector<double> force = {f(0), f(1), 0}; /* Z axis cannot bet infered from the joint angles, thus discarded*/
+    return force;
 }
 
-Eigen::MatrixXf ForceEstimatorNode::_get_ee_jacobian(float * pos)
+Eigen::MatrixXf ForceEstimatorNode::_get_ee_jacobian(double * pos)
 {
     /* Store all the sine and cosine value such that we don't have 
      * to re-compute them all the time */
@@ -68,7 +70,7 @@ Eigen::MatrixXf ForceEstimatorNode::_get_ee_jacobian(float * pos)
     return J_ee;
 }
 
-Eigen::VectorXf ForceEstimatorNode::_get_stiffness_contribution(float * pos)
+Eigen::VectorXf ForceEstimatorNode::_get_stiffness_contribution(double * pos)
 {
     Eigen::VectorXf tau(this->_k.size());
     for(uint i = 0; i < this->_k.size(); i++)
@@ -79,7 +81,7 @@ Eigen::VectorXf ForceEstimatorNode::_get_stiffness_contribution(float * pos)
     return tau;
 }
 
-Eigen::VectorXf ForceEstimatorNode::_get_ctrl_contribution(float tendon_force)
+Eigen::VectorXf ForceEstimatorNode::_get_ctrl_contribution(double tendon_force)
 {
     /* Init the vector. The first joint is passive,
      * hence the control contribution there is always zero. */
@@ -197,10 +199,10 @@ std::vector<Eigen::Vector3f> ForceEstimatorNode::_get_coms(std::vector<Eigen::Ve
     return coms;
 }
 
-Eigen::Matrix3f ForceEstimatorNode::_rot_x(float theta)
+Eigen::Matrix3f ForceEstimatorNode::_rot_x(double theta)
 {
-    float sT = sin(theta);
-    float cT = cos(theta);
+    double sT = sin(theta);
+    double cT = cos(theta);
 
     Eigen::Matrix3f rot;
     rot << 1,  0,   0,
@@ -210,10 +212,10 @@ Eigen::Matrix3f ForceEstimatorNode::_rot_x(float theta)
     return rot;
 }
 
-Eigen::Matrix3f ForceEstimatorNode::_rot_y(float theta)
+Eigen::Matrix3f ForceEstimatorNode::_rot_y(double theta)
 {
-    float sT = sin(theta);
-    float cT = cos(theta);
+    double sT = sin(theta);
+    double cT = cos(theta);
 
     Eigen::Matrix3f rot;
     rot <<  cT,  0, sT,
@@ -223,7 +225,7 @@ Eigen::Matrix3f ForceEstimatorNode::_rot_y(float theta)
     return rot;
 }
 
-std::vector<Eigen::Matrix3f> ForceEstimatorNode::_get_rs(float *pos)
+std::vector<Eigen::Matrix3f> ForceEstimatorNode::_get_rs(double *pos)
 {
     /* Init empty vector */
     std::vector<Eigen::Matrix3f> Rs;
@@ -243,92 +245,35 @@ std::vector<Eigen::Matrix3f> ForceEstimatorNode::_get_rs(float *pos)
     return Rs;
 }
 
-void ForceEstimatorNode::_run()
+void ForceEstimatorNode::_joint_callback(
+    const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-    for(;;)
-    {
-        /* Extract encoder position and velocity */
-        float pos[4] = {0.0, 0.0, 0.0, 0.0}, vel[4] = {0.0, 0.0, 0.0, 0.0};
-        this->_encoders->getPosition(pos);
-        this->_encoders->getVelocity(vel);
+    double pos[4] = {msg->position[0],
+                    msg->position[1],
+                    msg->position[2],
+                    msg->position[3]},
+           vel[4] = {msg->velocity[0],
+                    msg->velocity[1],
+                    msg->velocity[2],
+                    msg->velocity[3]};
 
-        /* Get the currently applied tendon force */
-        float tendon_force = 0.0; // TODO actually get the force
+    /* Get the currently applied tendon force */
+    double tendon_force = 0.0; // TODO actually get the force
 
-        /* Compute the estimated contact force and store in class var */
-        this->_estimate_force(pos, vel, tendon_force);
+    /* Compute the estimated contact force and store in class var */
+    std::vector<double> force = this->_estimate_force(pos, vel, tendon_force);
 
-    }
+    auto wrench_msg = geometry_msgs::msg::WrenchStamped();
+    wrench_msg.header.stamp = msg->header.stamp;
+    wrench_msg.header.frame_id = "world";
+
+    wrench_msg.wrench.force.x = force.at(0);
+    wrench_msg.wrench.force.y = force.at(1);
+    wrench_msg.wrench.force.z = force.at(2);
+
+    this->_force_publisher->publish(wrench_msg);
+
 }
-
-void ForceEstimatorNode::_begin()
-{
-    /* Start the thread.*/
-    this->_executer =  new std::thread(&ForceEstimatorNode::_run, this);
-    this->_executer->detach();
-}
-
-void ForceEstimatorNode::_set_force(std::vector<float> force)
-{
-    assert(force.size() == this->_force.size());
-    for(uint i = 0; i < force.size(); i++)
-    {
-        this->_force.at(i) = force.at(i);
-    }
-}
-
-void ForceEstimatorNode::_get_force(std::vector<float> & force)
-{
-    assert(force.size() == 3);
-
-    for(uint i = 0; i < force.size(); i++)
-    {
-        force.at(i) = this->_force.at(i);
-    }
-}
-
-void ForceEstimatorNode::_joint_timer_callback()
-{
-    auto message = sensor_msgs::msg::JointState();
-    message.header.stamp = this->now();
-    message.header.frame_id = this->get_name();
-    
-    float pos[4] = {0.0, 0.0, 0.0, 0.0}, vel[4] = {0.0,0.0,0.0,0.0};
-    this->_encoders->getPosition(pos);
-    this->_encoders->getVelocity(vel);
-
-    for(int i = 0; i < 4; i++)
-    {
-        message.position.push_back(i == 3 ? -pos[i] : pos[i]);
-        message.velocity.push_back(vel[i]);
-        message.name.push_back(this->_NAMES[i]);
-    }
-
-    this->_joint_publisher->publish(message);
-}
-
-void ForceEstimatorNode::_force_timer_callback()
-{
-    auto message = geometry_msgs::msg::WrenchStamped();
-    message.header.stamp = this->now();
-    message.header.frame_id = "world";
-
-    /* Get the currently estimated force */
-    std::vector<float> force(3);
-    this->_get_force(force);
-
-    /* Pack the force into the message.
-     * The torque is assumed to be zero, thus
-     * doesn't need to be filled explicitely */
-    message.wrench.force.x = force.at(0);
-    message.wrench.force.y = force.at(1);
-    message.wrench.force.z = force.at(2);
-    
-    /* Actually publish the message */
-    this->_force_publisher->publish(message);
-}
-
-
 
 int main(int argc, char * argv[])
 {

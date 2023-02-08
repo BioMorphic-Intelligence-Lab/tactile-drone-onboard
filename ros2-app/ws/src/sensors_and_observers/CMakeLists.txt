@@ -26,11 +26,9 @@ target_link_libraries(encoder_node ${catkin_LIBRARIES} -lwiringPi)
 target_include_directories(encoder_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
 
 ########### Executable for force estimator ######################
-add_executable(force_estimator_node src/force_estimator_node.cpp
-                                    src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
+add_executable(force_estimator_node src/force_estimator_node.cpp)
 ament_target_dependencies(force_estimator_node rclcpp sensor_msgs Eigen3)
-target_link_libraries(force_estimator_node ${catkin_LIBRARIES} -lwiringPi)
-target_include_directories(force_estimator_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
+target_include_directories(force_estimator_node PUBLIC include/sensors_and_observers)
 
 ########### Add Targets #################
 install(TARGETS
