@@ -32,12 +32,12 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
 
     /* Compute the current EE-Jacobian */
     Eigen::MatrixXf J_EE = this->_get_ee_jacobian(pos); 
-
+    
     /* Compute the force acting on the end effector */
     Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<double> force = {f(0), f(1), 0}; /* Z axis cannot bet infered from the joint angles, thus discarded*/
+    std::vector<double> force = {f(0), f(1), f(2)}; 
     return force;
 }
 
@@ -75,7 +75,7 @@ Eigen::VectorXf ForceEstimatorNode::_get_stiffness_contribution(double * pos)
     Eigen::VectorXf tau(this->_k.size());
     for(uint i = 0; i < this->_k.size(); i++)
     {
-        tau(i) = this->_k.at(i) * pos[i];
+        tau(i) = -this->_k.at(i) * pos[i];
     }
 
     return tau;
