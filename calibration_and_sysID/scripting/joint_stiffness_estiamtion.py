@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 
 # Define Indeces
 TIME = 0
@@ -100,42 +101,52 @@ def rot_y(theta):
                      [-sT, 0, cT]])
 
 
+print("Estimate the stiffness for joint 0")
 # This is for the sequence where the first joint was in
 # in static equilibrium
-q_test1 = np.average(data[
+q_test1 = data[
      np.abs(data[:, TIME] - equil1[0][0]).argmin():
-     np.abs(data[:, TIME] - equil1[0][1]).argmin(), P1:P4+1], axis=0)
+     np.abs(data[:, TIME] - equil1[0][1]).argmin(), P1:P4+1]
 
-q_test2 = np.average(data[
+q_test2 = data[
      np.abs(data[:, TIME] - equil1[1][0]).argmin():
-     np.abs(data[:, TIME] - equil1[1][1]).argmin(), P1:P4+1], axis=0)
+     np.abs(data[:, TIME] - equil1[1][1]).argmin(), P1:P4+1]
 
-g_test1 = gravity_contribution(q_test1)
-g_test2 = gravity_contribution(q_test2)
+g_test1 = np.array([gravity_contribution(q_test1[i, :]) for i in range(len(q_test1))])
+g_test2 = np.array([gravity_contribution(q_test2[i, :]) for i in range(len(q_test2))])
 
-k1_test1 = g_test1[0] / q_test1[0]
-k1_test2 = g_test2[0] / q_test2[0]
+print(np.concatenate((g_test1[:,0], g_test2[:,0])))
+print(np.concatenate((1.0 / q_test1[:,0], 1.0 / q_test2[:,0])))
 
-print(k1_test1)
-print(k1_test2)
+def error_q1(k1):
+    return np.dot(np.concatenate((g_test1[:,0], g_test2[:,0])) * np.concatenate((1.0 / q_test1[:,0], 1.0 / q_test2[:,0])) - k1, 
+                  np.concatenate((g_test1[:,0], g_test2[:,0])) * np.concatenate((1.0 / q_test1[:,0], 1.0 / q_test2[:,0])) - k1)
+
+res_q1 = minimize(error_q1, 0.07)
+print(res_q1)
+
+print("Estimate the stiffness for joints 1 -> 3")
 
 # This is for the sequence where all the other joints where
 # in a static equilibrium
-q_test1 = np.average(data[
+q_test1 = data[
      np.abs(data[:, TIME] - equilRest[0][0]).argmin():
-     np.abs(data[:, TIME] - equilRest[0][1]).argmin(), P1:P4+1], axis=0)
+     np.abs(data[:, TIME] - equilRest[0][1]).argmin(), P1:P4+1]
 
-q_test2 = np.average(data[
+q_test2 = data[
      np.abs(data[:, TIME] - equilRest[1][0]).argmin():
-     np.abs(data[:, TIME] - equilRest[1][1]).argmin(), P1:P4+1], axis=0)
+     np.abs(data[:, TIME] - equilRest[1][1]).argmin(), P1:P4+1]
 
-g_test1 = gravity_contribution(q_test1)
-g_test2 = gravity_contribution(q_test2)
+g_test1 = np.array([gravity_contribution(q_test1[i, :]) for i in range(len(q_test1))])
+g_test2 = np.array([gravity_contribution(q_test2[i, :]) for i in range(len(q_test2))])
 
-k1_test1 = g_test1[1:] / q_test1[1:]
-k1_test2 = g_test2[1:] / q_test2[1:]
+def error_qrest(k):
+    return np.linalg.norm(np.matmul(np.transpose(np.concatenate((g_test1[:,1:], g_test2[:,1:])) * np.concatenate((1.0 / q_test1[:,1:], 1.0 / q_test2[:,1:])) - k), 
+                          np.concatenate((g_test1[:,1:], g_test2[:,1:])) * np.concatenate((1.0 / q_test1[:,1:], 1.0 / q_test2[:,1:])) - k))
 
-print(k1_test1)
-print(k1_test2)
+res_qrest = minimize(error_qrest, np.array([0.073, 0.027, 0.026]))
+print(res_qrest)
 
-# TODO Proper statistics and export to file
+print("Saving to file... ")
+
+np.savetxt("stiffness.txt", np.concatenate((res_q1.x, res_qrest.x)))
