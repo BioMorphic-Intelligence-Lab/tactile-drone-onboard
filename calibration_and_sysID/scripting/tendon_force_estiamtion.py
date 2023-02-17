@@ -18,7 +18,7 @@ data = np.loadtxt("tendon_force_config.txt", skiprows=2)
 
 # Load Stiffness Matrix
 K = np.diag(np.loadtxt("stiffness.txt"))
-A = np.array([0.01,0.01,0.01,0.01]) # TODO Measure
+A = np.array([0, 0.02, 0.02, 0.015])
 
 # Convert Timestamps to seconds and shift to zeros
 data[:,TIME] = (data[:,TIME] - data[0, TIME]) * 1e-9
@@ -110,8 +110,8 @@ G = gravity_contribution(q)
 def error(tau):
    return np.dot(G + np.matmul(K,q) - A * tau, G + np.matmul(K,q) - A * tau)
 
-# Finding the force that minimizes the 2-norm of the error function
+# Finding the force that minimizes the square of the 2-norm of the error function
 res = sp.optimize.minimize(error, 2)
 
-print(res.x) # This is the force
+print(res) # This is the force
 
