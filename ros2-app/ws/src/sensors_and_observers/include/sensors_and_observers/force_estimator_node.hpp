@@ -20,12 +20,14 @@ public:
     this->declare_parameter("arm_properties.l", std::vector<double>{0.025, 0.0578, 0.058, 0.045});
     this->declare_parameter("arm_properties.k", std::vector<double>{0.1, 0.1, 0.1, 0.1});
     this->declare_parameter("arm_properties.r", std::vector<double>{0.02, 0.02, 0.015});
+    this->declare_parameter("arm_properties.f", -0.48812942);
 
     /* Get all the arm property parameters */
     this->_m = this->get_parameter("arm_properties.m").as_double_array();
     this->_l = this->get_parameter("arm_properties.l").as_double_array();
     this->_k = this->get_parameter("arm_properties.k").as_double_array();
     this->_r = this->get_parameter("arm_properties.r").as_double_array();
+    this->_f = this->get_parameter("arm_properties.f").as_double();
 
     assert(this->_m.size() == this->_l.size());
 
@@ -63,4 +65,5 @@ private:
 
   /* Arm properties*/
   std::vector<double> _m, _l, _k, _r;
+  double _f;
 };

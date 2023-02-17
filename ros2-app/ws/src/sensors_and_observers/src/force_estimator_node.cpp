@@ -257,11 +257,9 @@ void ForceEstimatorNode::_joint_callback(
                     msg->velocity[2],
                     msg->velocity[3]};
 
-    /* Get the currently applied tendon force */
-    double tendon_force = 0.0; // TODO actually get the force
 
     /* Compute the estimated contact force and store in class var */
-    std::vector<double> force = this->_estimate_force(pos, vel, tendon_force);
+    std::vector<double> force = this->_estimate_force(pos, vel, this->_f);
 
     auto wrench_msg = geometry_msgs::msg::WrenchStamped();
     wrench_msg.header.stamp = msg->header.stamp;
