@@ -34,7 +34,7 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
     Eigen::MatrixXf J_EE = this->_get_ee_jacobian(pos); 
     
     /* Compute the force acting on the end effector */
-    Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
+    Eigen::Vector3f f = J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
     std::vector<double> force = {f(0), f(1), f(2)};  
