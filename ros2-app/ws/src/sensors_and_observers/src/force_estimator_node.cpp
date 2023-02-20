@@ -37,7 +37,7 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
     Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<double> force = {f(0), f(1), f(2)}; 
+    std::vector<double> force = {f(0), f(1), 0}; // Z-axis cannot be infered, thus ignored 
     return force;
 }
 
