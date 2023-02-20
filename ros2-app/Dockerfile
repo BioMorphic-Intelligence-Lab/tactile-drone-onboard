@@ -13,7 +13,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq && apt-
     && rm -rf /var/lib/apt/lists/*
 
 # Install wiring-pi
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq && apt-get install -y wiringpi libwiringpi-dev
+RUN git clone https://github.com/WiringPi/WiringPi && cd WiringPi && ./build
 
 # Add copy of local workspace and setup script
 WORKDIR /home/user/ros/TactileDrone
