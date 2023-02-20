@@ -12,7 +12,7 @@ void EncoderNode::timer_callback()
 
     for(int i = 0; i < 4; i++)
     {
-        message.position.push_back(i == 3 ? -pos[i] : pos[i]);
+        message.position.push_back(i == 1 ? pos[i] : -pos[i]);
         message.velocity.push_back(vel[i]);
         message.name.push_back(this->_NAMES[i]);
     }

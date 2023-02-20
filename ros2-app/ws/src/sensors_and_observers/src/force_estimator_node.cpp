@@ -37,7 +37,7 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
     Eigen::Vector3f f = -J_EE.transpose().completeOrthogonalDecomposition().pseudoInverse() 
                              * (gravity_cont + stiffness_cont - ctrl_cont);
 
-    std::vector<double> force = {f(0), f(1), 0}; // Z-axis cannot be infered, thus ignored 
+    std::vector<double> force = {f(0), f(1), f(2)};  
     return force;
 }
 
@@ -263,7 +263,7 @@ void ForceEstimatorNode::_joint_callback(
 
     auto wrench_msg = geometry_msgs::msg::WrenchStamped();
     wrench_msg.header.stamp = msg->header.stamp;
-    wrench_msg.header.frame_id = "world";
+    wrench_msg.header.frame_id = "ee";
 
     wrench_msg.wrench.force.x = force.at(0);
     wrench_msg.wrench.force.y = force.at(1);
