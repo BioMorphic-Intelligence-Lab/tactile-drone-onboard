@@ -43,7 +43,7 @@ public:
     uint16_t f = this->get_parameter("state_pub_fr").as_int();
 
     /* Init all the class members */
-    this->_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+    this->_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", rclcpp::SensorDataQoS());
     this->_timer = this->create_wall_timer(std::chrono::milliseconds(int(1e3 * 1.0 / f)), std::bind(&EncoderNode::timer_callback, this));
 
     /* Init Encoder Driver instances */
