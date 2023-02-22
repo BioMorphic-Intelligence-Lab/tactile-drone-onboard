@@ -279,10 +279,10 @@ void ForceEstimatorNode::_joint_callback(
                     msg->position[1],
                     msg->position[2],
                     msg->position[3]},
-           vel[4] = {0.0,//msg->velocity[0],
-                    0.0,//msg->velocity[1],
-                    0.0,//msg->velocity[2],
-                    0.0};//msg->velocity[3]};
+           vel[4] = {msg->velocity[0],
+                    msg->velocity[1],
+                    msg->velocity[2],
+                    msg->velocity[3]};
 
     /* Compute the estimated contact force and store in class var */
     std::vector<double> force = this->_estimate_force(pos, vel, this->_f);
