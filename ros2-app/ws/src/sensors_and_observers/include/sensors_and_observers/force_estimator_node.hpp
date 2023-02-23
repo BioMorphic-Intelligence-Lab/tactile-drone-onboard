@@ -35,7 +35,7 @@ public:
     this->_make_frame_alignments();
 
     /* Init all the class members */
-    this->_force_publisher = this->create_publisher<geometry_msgs::msg::WrenchStamped>("wrench", rclcpp::SensorDataQoS());
+    this->_force_publisher = this->create_publisher<geometry_msgs::msg::WrenchStamped>("wrench", 10);
     this->_joint_subscriber = this->create_subscription<sensor_msgs::msg::JointState>(
       "joint_states", rclcpp::SensorDataQoS(), std::bind(&ForceEstimatorNode::_joint_callback, this, std::placeholders::_1));
   }
@@ -63,6 +63,8 @@ private:
   Eigen::VectorXf _get_stiffness_contribution(double * pos);     
   Eigen::VectorXf _get_ctrl_contribution(double tendon_force);     
   Eigen::MatrixXf _get_ee_jacobian(double * pos);                
+
+  Eigen::MatrixXf pseudoInverse(const Eigen::MatrixXf &a, double epsilon = std::numeric_limits<double>::epsilon());
 
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr _joint_subscriber;
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr _force_publisher;
