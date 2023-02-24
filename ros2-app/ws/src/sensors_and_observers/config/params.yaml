@@ -11,6 +11,6 @@ force_estimator:
     arm_properties:
       m: [0.03, 0.005, 0.06, 0.03, 0.01] # Link Mass [kg]
       l: [0.025, 0.025, 0.0578, 0.058, 0.045] # Link Length [m]
-      k: [7.755355771701655243e-02, 7.360334418546668478e-02, 2.660210217228433163e-02, 2.496945191771825223e-02] # Joint stiffness [Nm / rad]
+      k: [1.148684645825963357e-01, 1.733173644303289129e-01, 6.413511406290881012e-02, 3.144847601149513422e-02] # Joint stiffness [Nm / rad]
       r: [0.02, 0.02, 0.015] # Distance of tendon to arm center [m]
-      f: 0.48812942 # Constant Tendon force [Nm]
+      f: 0.75569389 # Constant Tendon force [Nm]
