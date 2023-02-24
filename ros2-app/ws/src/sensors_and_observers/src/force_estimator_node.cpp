@@ -36,7 +36,7 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
     /* Compute the force acting on the end effector. It is negative since we're interested in the force
      * acting on the end-effector and not the force on the environment */
     Eigen::Vector3f f = -this->pseudoInverse(J_EE.transpose())
-                             * (gravity_cont + stiffness_cont - ctrl_cont);
+                             * (gravity_cont + stiffness_cont - ctrl_cont) - this->bias;
 
     std::vector<double> force = {f(0), f(1), f(2)};  
     return force;
@@ -275,25 +275,44 @@ void ForceEstimatorNode::_joint_callback(
                     msg->position[1],
                     msg->position[2],
                     msg->position[3]},
-           vel[4] = {0,//msg->velocity[0],
-                    0,//msg->velocity[1],
-                    0,//msg->velocity[2],
-                    0};//msg->velocity[3]};
+           vel[4] = {msg->velocity[0],
+                     msg->velocity[1],
+                     msg->velocity[2],
+                     msg->velocity[3]};
 
     /* Compute the estimated contact force and store in class var */
-    std::vector<double> force = this->_estimate_force(pos, vel, this->_f);
+    this->_force = this->_estimate_force(pos, vel, this->_f);
 
     auto wrench_msg = geometry_msgs::msg::WrenchStamped();
     wrench_msg.header.stamp = msg->header.stamp;
     wrench_msg.header.frame_id = "arm_base";
 
-    wrench_msg.wrench.force.x = force.at(0);
-    wrench_msg.wrench.force.y = force.at(1);
-    wrench_msg.wrench.force.z = force.at(2);
+    wrench_msg.wrench.force.x = this->_force.at(0);
+    wrench_msg.wrench.force.y = this->_force.at(1);
+    wrench_msg.wrench.force.z = this->_force.at(2);
 
     this->_force_publisher->publish(wrench_msg);
 
 }
+
+
+void ForceEstimatorNode::_calibrate_bias(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+	                                           std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+	RCLCPP_INFO(this->get_logger(), "Calibrating Force Estimator Bias");
+    (void) request;
+    this->bias(0) = this->_force.at(0);
+    this->bias(1) = this->_force.at(1);
+    this->bias(2) = this->_force.at(2);
+
+    response->success = true;
+    std::stringstream ss;
+    ss << "Bias: " << this->bias.transpose();
+    
+    response->message = ss.str();
+
+}
+
 
 void ForceEstimatorNode::_make_frame_alignments()
 {

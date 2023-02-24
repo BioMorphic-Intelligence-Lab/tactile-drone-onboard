@@ -12,6 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 ########### Add include directory for Eigen ###################
@@ -27,7 +28,7 @@ target_include_directories(encoder_node PUBLIC include/sensors_and_observers src
 
 ########### Executable for force estimator ######################
 add_executable(force_estimator_node src/force_estimator_node.cpp)
-ament_target_dependencies(force_estimator_node rclcpp sensor_msgs Eigen3)
+ament_target_dependencies(force_estimator_node rclcpp sensor_msgs geometry_msgs std_srvs Eigen3)
 target_include_directories(force_estimator_node PUBLIC include/sensors_and_observers)
 
 ########### Add Targets #################
