@@ -11,7 +11,7 @@ public:
 
       /* Init all the class members */
       this->_joint_subscriber = this->create_subscription<sensor_msgs::msg::JointState>(
-        topic, 10, std::bind(&Converter::_joint_callback, this, std::placeholders::_1));
+        topic, rclcpp::SensorDataQoS(), std::bind(&Converter::_joint_callback, this, std::placeholders::_1));
 
     }
 private:
