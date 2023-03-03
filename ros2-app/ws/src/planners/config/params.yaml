@@ -1,0 +1,17 @@
+contact_based_reference_finder:
+  ros__parameters:
+    force_topic: "wrench"
+    reference_topic: "ee_reference"
+    init_ref: [0, 0, 0]
+    alpha: 0.2 # Distance between two reference positions
+    robot_params:
+      l: [0.025, 0.025, 0.0578, 0.058, 0.045] # Link Length [m]
+      alignments:
+        offset: [0.2, 0, 0] # Translation vector from base coordinate system to arm base
+        base: [3.14159265359, 0, -1.57079632679] # Rotation of the base coordinate system to the arm base
+        align0: [0, 0, 0] # Rotation from base to joint 0
+        align1: [0, 0, 1.57079632679] # Rotation from joint 0 to joint 1
+        align2: [0, 0, 3.14159265359] # Rotation from joint 1 to joint 2
+        align3: [0, 0, 3.14159265359] # Rotation from joint 2 to joint 3
+        align4: [0, 0,-1.57079632679] # Rotation from joint 3 to ee frame
+        

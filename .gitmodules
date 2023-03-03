@@ -2,3 +2,6 @@
 [submodule "src/sensors_and_observers/src/cui-devices-amt-10x-driver"]
 	path = src/sensors_and_observers/src/cui-devices-amt-10x-driver
 	url = git@github.com:BioMorphic-Intelligence-Lab/cui-devices-amt-10x-driver.git
+[submodule "ros2-app/ws/src/px4_msgs"]
+	path = ros2-app/ws/src/px4_msgs
+	url = https://github.com/PX4/px4_msgs
