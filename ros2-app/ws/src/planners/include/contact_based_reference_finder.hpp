@@ -7,6 +7,7 @@
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_status.hpp"
+#include "px4_ros_com/frame_transforms.h"
 
 class ContactBasedReferenceFinder : public rclcpp::Node
 {
@@ -15,7 +16,7 @@ public:
         : Node("contact_based_reference_finder")
     {   
         /* Declare all the parameters */
-        this->declare_parameter("init_reference", std::vector<double>{0, 0, 0});
+        this->declare_parameter("init_reference", std::vector<double>{1.0, 1.0, 1.0});
         this->declare_parameter("force_topic", "wrench");
         this->declare_parameter("reference_topic", "ee_reference");
         this->declare_parameter("alpha", 0.2);
@@ -31,6 +32,7 @@ public:
         /* Actually get all the parameters */
         std::vector<double> reference_vect = this->get_parameter("init_reference").as_double_array();
         this->_reference = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(reference_vect.data(), reference_vect.size());
+        this->_reference_yaw = 0;
         this->_alpha  = this->get_parameter("alpha").as_double();
         this->_nav_state = px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_MAX;
 
@@ -81,7 +83,7 @@ private:
     Eigen::Vector3d _x;
     Eigen::Quaterniond _q;
 
-    double _alpha;
+    double _alpha, _reference_yaw;
 
     uint8_t _nav_state;
 

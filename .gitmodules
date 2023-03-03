@@ -5,3 +5,6 @@
 [submodule "ros2-app/ws/src/px4_msgs"]
 	path = ros2-app/ws/src/px4_msgs
 	url = https://github.com/PX4/px4_msgs
+[submodule "ros2-app/ws/src/px4_ros_com"]
+	path = ros2-app/ws/src/px4_ros_com
+	url = https://github.com/PX4/px4_ros_com

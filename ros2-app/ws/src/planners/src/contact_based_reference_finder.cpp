@@ -3,14 +3,27 @@
 
 void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
 {
-  /* Extract*/
-  Eigen::Vector3d force;
-  force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
-
+  
   /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
-  if((this->_reference - this->_forward_kinematics(this->_x, this->_q, this->_joint_state)).norm() < 0.01)
+  Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_joint_state);
+  double error = (this->_reference - ee).norm();
+
+  if(error < 0.25 * this->_alpha)
   {
-    //TODO Compute the new reference based on the contact force
+    /* Extract*/
+    Eigen::Vector3d force, unit_z, unit_x;
+    force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
+    unit_x << 1, 0, 0;
+    unit_z << 0, 0, 1;
+
+    /* Compute the reference yaw */
+    this->_reference_yaw += acos(force.dot(unit_x) / (force.norm()));
+
+    /* Transform the force into the world coordinate system */
+    force = this->_base.transpose() * force;
+    /* Compute the new reference position based on the contact force */
+    this->_reference += this->_alpha * (force.cross(unit_z).normalized());
+
   }
 
   geometry_msgs::msg::PointStamped ref;
@@ -23,22 +36,28 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   auto offboard_msg = px4_msgs::msg::OffboardControlMode();
   offboard_msg.timestamp = (uint64_t)(this->now().nanoseconds() * 0.001);
   offboard_msg.position=true;
+  offboard_msg.attitude=true;
   offboard_msg.velocity=false;
   offboard_msg.acceleration=false;
   this->_offboard_publisher->publish(offboard_msg);
   
 
   /* Compute the respective reference position of the base */
-  Eigen::Vector3d base_ref = this->_reference - (this->_offset + this->_relative_forward_kinematics(this->_joint_state));
+  // TODO this should be done from the nominal joint state, not the actual one
+  Eigen::Vector3d base_ref = this->_reference - (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
 
   if(this->_nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD)
   {
     px4_msgs::msg::TrajectorySetpoint set;
     set.timestamp = (uint64_t) (this->now().nanoseconds() * 0.001);
-    set.position[0] = base_ref(0);
-    set.position[1] = base_ref(1);
-    set.position[2] = base_ref(2);
+    /* Transform reference back into px4 frame (ned) */
+    Eigen::Vector3d base_ref_px4 = px4_ros_com::frame_transforms::enu_to_ned_local_frame(base_ref);    
+    set.position[0] = base_ref_px4.x();
+    set.position[1] = base_ref_px4.y();
+    set.position[2] = base_ref_px4.z();
 
+    /* The Yaw also needs to be transformed into the px4 coordinate system (ned) */
+    set.yaw = M_PI_2 - this->_reference_yaw;
     /* Publish all the values */
     this->_trajectory_publisher->publish(set);
   }
@@ -53,12 +72,19 @@ void ContactBasedReferenceFinder::_status_callback(const px4_msgs::msg::VehicleS
 
 void ContactBasedReferenceFinder::_vehicle_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
 {
-  this->_x(0) = msg->position[0];
-  this->_x(1) = msg->position[1];
-  this->_x(2) = msg->position[2]; 
+  /* Transform from px4 frame (ned) to ros2 frame (enu)*/
+  Eigen::Quaterniond orientation = px4_ros_com::frame_transforms::utils::quaternion::array_to_eigen_quat(msg->q);
+  Eigen::Vector3d position = Eigen::Vector3d(msg->position[0], msg->position[1], msg->position[2]);
 
-  // TODO double check if this order is correct
-  this->_q = Eigen::Quaterniond(msg->q[3], msg->q[0], msg->q[1], msg->q[2]);
+  orientation = px4_ros_com::frame_transforms::ned_to_enu_orientation(
+                  px4_ros_com::frame_transforms::aircraft_to_baselink_orientation(orientation));
+  position = px4_ros_com::frame_transforms::ned_to_enu_local_frame(position);            
+
+  this->_x.x() = position.x();
+  this->_x.y() = position.y();
+  this->_x.z() = position.z(); 
+
+  this->_q = orientation;
 }
 
 void ContactBasedReferenceFinder::_joint_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
@@ -79,7 +105,6 @@ Eigen::Vector3d ContactBasedReferenceFinder::_relative_forward_kinematics(Eigen:
           + this->_l[2] * this->_alignments[0] * rot_x(xi[0]) * this->_alignments[1] * rot_x(xi[1]) * bar
           + this->_l[3] * this->_alignments[0] * rot_x(xi[0]) * this->_alignments[1] * rot_x(xi[1]) * this->_alignments[2] *  rot_x(xi[2]) * bar
           + this->_l[4] * this->_alignments[0] * rot_x(xi[0]) * this->_alignments[1] * rot_x(xi[1]) * this->_alignments[2] *  rot_x(xi[2]) * this->_alignments[3] * rot_x(xi[3]) * bar;
-
   return ee_pos;
 }
 
@@ -89,7 +114,7 @@ Eigen::Vector3d ContactBasedReferenceFinder::_forward_kinematics(Eigen::Vector3d
   Eigen::Vector3d ee_pos;
   
   ee_pos = x 
-          +  q.normalized().toRotationMatrix() *  (this->_offset 
+          +  q.normalized().toRotationMatrix() * (this->_offset 
           + this->_base *(this->_relative_forward_kinematics(xi)
           ));
 
