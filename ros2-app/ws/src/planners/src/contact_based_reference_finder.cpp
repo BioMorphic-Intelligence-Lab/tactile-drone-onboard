@@ -26,12 +26,14 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
   }
 
-  geometry_msgs::msg::PointStamped ref;
+  geometry_msgs::msg::PoseStamped ref;
   ref.header.stamp = this->now();
   ref.header.frame_id = "world";
-  ref.point.x = this->_reference(0);
-  ref.point.y = this->_reference(1);
-  ref.point.z = this->_reference(2);
+  ref.pose.position.x = this->_reference(0);
+  ref.pose.position.y = this->_reference(1);
+  ref.pose.position.z = this->_reference(2);
+  ref.pose.orientation.z = sin(this->_reference_yaw * 0.5);
+  ref.pose.orientation.w = cos(this->_reference_yaw * 0.5);
 
   auto offboard_msg = px4_msgs::msg::OffboardControlMode();
   offboard_msg.timestamp = (uint64_t)(this->now().nanoseconds() * 0.001);

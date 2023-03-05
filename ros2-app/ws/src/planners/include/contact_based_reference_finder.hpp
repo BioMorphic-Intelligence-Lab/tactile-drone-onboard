@@ -1,6 +1,6 @@
 #include <Eigen/Dense>
 #include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
@@ -65,7 +65,7 @@ public:
         this->_status_subscription = this->create_subscription<px4_msgs::msg::VehicleStatus>(
             "/fmu/out/vehicle_status", rclcpp::SensorDataQoS(), std::bind(&ContactBasedReferenceFinder::_status_callback, this, std::placeholders::_1));
 
-        this->_reference_publisher = this->create_publisher<geometry_msgs::msg::PointStamped>(
+        this->_reference_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>(
             this->get_parameter("reference_topic").as_string(), 10);
         this->_offboard_publisher = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
             "/fmu/in/offboard_control_mode", 10);
@@ -98,7 +98,7 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr _vehicle_subscription;
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr _status_subscription;
 
-    rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr _reference_publisher;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _reference_publisher;
     rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr _trajectory_publisher;
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr _offboard_publisher;
 
