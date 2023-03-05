@@ -46,7 +46,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
   /* Compute the respective reference position of the base */
   // TODO this should be done from the nominal joint state, not the actual one
-  Eigen::Vector3d base_ref = this->_reference - (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
+  Eigen::Vector3d base_ref = this->_reference - this->_q.normalized().toRotationMatrix() * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
 
   if(this->_nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD)
   {
