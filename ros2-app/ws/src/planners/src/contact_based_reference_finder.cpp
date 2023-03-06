@@ -26,8 +26,10 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
   }
 
+  rclcpp::Time now = this->now();
+
   geometry_msgs::msg::PoseStamped ref;
-  ref.header.stamp = this->now();
+  ref.header.stamp = now;
   ref.header.frame_id = "world";
   ref.pose.position.x = this->_reference(0);
   ref.pose.position.y = this->_reference(1);
@@ -36,7 +38,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   ref.pose.orientation.w = cos(this->_reference_yaw * 0.5);
 
   auto offboard_msg = px4_msgs::msg::OffboardControlMode();
-  offboard_msg.timestamp = (uint64_t)(this->now().nanoseconds() * 0.001);
+  offboard_msg.timestamp = (uint64_t)(now.nanoseconds() * 0.001);
   offboard_msg.position=true;
   offboard_msg.attitude=true;
   offboard_msg.velocity=false;
@@ -51,7 +53,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   if(this->_nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD)
   {
     px4_msgs::msg::TrajectorySetpoint set;
-    set.timestamp = (uint64_t) (this->now().nanoseconds() * 0.001);
+    set.timestamp = (uint64_t) (now.nanoseconds() * 0.001);
     /* Transform reference back into px4 frame (ned) */
     Eigen::Vector3d base_ref_px4 = px4_ros_com::frame_transforms::enu_to_ned_local_frame(base_ref);    
     set.position[0] = base_ref_px4.x();
