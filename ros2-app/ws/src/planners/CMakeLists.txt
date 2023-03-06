@@ -31,7 +31,11 @@ target_compile_features(contact_based_reference_finder PUBLIC c_std_99 cxx_std_1
 add_executable(fake_wrench_publisher src/fake_wrench_publisher.cpp)
 ament_target_dependencies(fake_wrench_publisher rclcpp geometry_msgs)
 
-install(TARGETS contact_based_reference_finder fake_wrench_publisher
+
+add_executable(base_reference_position_test src/base_reference_position_test.cpp)
+ament_target_dependencies(base_reference_position_test rclcpp geometry_msgs px4_msgs px4_ros_com Eigen3)
+
+install(TARGETS contact_based_reference_finder fake_wrench_publisher base_reference_position_test
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
