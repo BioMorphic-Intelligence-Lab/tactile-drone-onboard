@@ -8,3 +8,9 @@
 [submodule "ros2-app/ws/src/px4_ros_com"]
 	path = ros2-app/ws/src/px4_ros_com
 	url = https://github.com/PX4/px4_ros_com
+[submodule "ros2-app/ws/src/mocap_optitrack_client"]
+	path = ros2-app/ws/src/mocap_optitrack_client
+	url = git@github.com:BioMorphic-Intelligence-Lab/mocap_optitrack_client.git
+[submodule "ros2-app/ws/src/mocap_optitrack_interfaces"]
+	path = ros2-app/ws/src/mocap_optitrack_interfaces
+	url = git@github.com:BioMorphic-Intelligence-Lab/mocap_optitrack_interfaces.git
