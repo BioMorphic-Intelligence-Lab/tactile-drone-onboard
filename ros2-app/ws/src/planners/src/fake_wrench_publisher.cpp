@@ -11,7 +11,7 @@ public:
         : Node("fake_wrench_publisher")
     {   
         timer_ = this->create_wall_timer(
-            500ms, std::bind(&FakeWrenchPublisher::timer_callback, this));
+            10ms, std::bind(&FakeWrenchPublisher::timer_callback, this));
         this->_wrench_publisher = this->create_publisher<geometry_msgs::msg::WrenchStamped>("/wrench", 10);
 
     }
@@ -25,7 +25,7 @@ private:
       message.header.frame_id = "arm_base";
 
       message.wrench.force.x = 1;
-      message.wrench.force.y = 1;
+      message.wrench.force.y = 0.2;
       message.wrench.force.z = 0;
       
       this->_wrench_publisher->publish(message);
