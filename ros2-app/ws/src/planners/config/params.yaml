@@ -15,3 +15,6 @@ contact_based_reference_finder:
         align3: [0.0, 0.0, 3.14159265359] # Rotation from joint 2 to joint 3
         align4: [0.0, 0.0,-1.57079632679] # Rotation from joint 3 to ee frame
         
+base_reference_position_publisher:
+  ros__parameters:
+    frequency: 20.0 # publishing frequency of reference positions [hz]

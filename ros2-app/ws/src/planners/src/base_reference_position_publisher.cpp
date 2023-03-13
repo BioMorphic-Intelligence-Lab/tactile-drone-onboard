@@ -1,7 +1,6 @@
 #include <Eigen/Dense>
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "px4_msgs/msg/vehicle_odometry.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_status.hpp"
@@ -15,10 +14,16 @@ class BaseReferencePositionPub : public rclcpp::Node
 {
 public:
     BaseReferencePositionPub()
-        : Node("base_reference_position_test_node"), _offboard_setpoint_counter(0)
+        : Node("base_reference_position_publisher"), _offboard_setpoint_counter(0)
     {   
 
-        this->_timer = this->create_wall_timer(50ms, std::bind(&BaseReferencePositionPub::_timer_callback, this));
+        /* Declare all the parameters */
+        this->declare_parameter("frequency", 20.0);
+
+        /* Actually get all the parameters */
+        this->_frequency =  this->get_parameter("frequency").as_double();
+        this->_timer = this->create_wall_timer(1.0 / this->_frequency * 1s,
+                                               std::bind(&BaseReferencePositionPub::_timer_callback, this));
         this->_status_subscription = this->create_subscription<px4_msgs::msg::VehicleStatus>(
             "/fmu/out/vehicle_status", rclcpp::SensorDataQoS(), std::bind(&BaseReferencePositionPub::_status_callback, this, std::placeholders::_1));
         this->_timesync_subscription = this->create_subscription<px4_msgs::msg::TimesyncStatus>(
@@ -37,7 +42,7 @@ public:
         this->_beginning = this->now();
 
         /* Init Ref Pose */
-        this->_ref_pos = {0.0, 0.0, -5.0};
+        this->_ref_pos = {0.0, 0.0, -3.0};
         this->_ref_yaw = 0.0;
 
     }
@@ -48,6 +53,8 @@ private:
     bool _taken_off = false, _landed = false;
     uint _offboard_setpoint_counter;
 
+    double _frequency;
+
     rclcpp::Time _beginning;
     rclcpp::TimerBase::SharedPtr _timer;
 
@@ -55,7 +62,7 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr _status_subscription;
     rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_subscription;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _reference_subscription;
-
+    
     rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr _trajectory_publisher;
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr _offboard_publisher;
     rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr _vehicle_command_pub;
@@ -102,13 +109,13 @@ private:
         double t = (this->now() - this->_beginning).seconds();
 
         // We start by just taking off and hovering above the ground
-        Eigen::Vector3d reference = {0, 0, -5.0};
+        Eigen::Vector3d reference = {0, 0, -3.0};
         float yaw = 0;
 
+        // Mission duration
         if(t > 15 && t <= 100)
         {
-            // Otherwise we trt to achieve the setpoint
-            reference = this->_ref_pos;
+            reference = this->_ref_pos; 
             yaw = this->_ref_yaw;
         }
         else if(t > 100 && !this->_landed)
