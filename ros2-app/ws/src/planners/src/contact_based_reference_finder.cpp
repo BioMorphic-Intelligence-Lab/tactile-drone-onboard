@@ -40,7 +40,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
   /* Compute the respective reference position of the base */
   // TODO this should be done from the nominal joint state, not the actual one
-  Eigen::Vector3d base_ref = this->_reference - this->_q.normalized().toRotationMatrix() * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
+  Eigen::Vector3d base_ref = this->_reference - rot_z(this->_reference_yaw) * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
 
   geometry_msgs::msg::PoseStamped set;
   set.header.stamp = now;
