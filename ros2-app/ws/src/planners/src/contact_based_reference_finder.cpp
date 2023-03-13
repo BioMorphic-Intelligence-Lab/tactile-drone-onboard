@@ -36,36 +36,24 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   ref.pose.position.z = this->_reference(2);
   ref.pose.orientation.z = sin(this->_reference_yaw * 0.5);
   ref.pose.orientation.w = cos(this->_reference_yaw * 0.5);
-
-  auto offboard_msg = px4_msgs::msg::OffboardControlMode();
-  offboard_msg.timestamp = (uint64_t)(now.nanoseconds() * 0.001);
-  offboard_msg.position=true;
-  offboard_msg.attitude=true;
-  offboard_msg.velocity=false;
-  offboard_msg.acceleration=false;
-  this->_offboard_publisher->publish(offboard_msg);
-  
+ 
 
   /* Compute the respective reference position of the base */
   // TODO this should be done from the nominal joint state, not the actual one
   Eigen::Vector3d base_ref = this->_reference - this->_q.normalized().toRotationMatrix() * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
 
-  if(this->_nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD)
-  {
-    px4_msgs::msg::TrajectorySetpoint set;
-    set.timestamp = (uint64_t) (now.nanoseconds() * 0.001);
-    /* Transform reference back into px4 frame (ned) */
-    Eigen::Vector3d base_ref_px4 = px4_ros_com::frame_transforms::enu_to_ned_local_frame(base_ref);    
-    set.position[0] = base_ref_px4.x();
-    set.position[1] = base_ref_px4.y();
-    set.position[2] = base_ref_px4.z();
+  geometry_msgs::msg::PoseStamped set;
+  set.header.stamp = now;
+  set.header.frame_id = "world";
 
-    /* The Yaw also needs to be transformed into the px4 coordinate system (ned) */
-    set.yaw = M_PI_2 - this->_reference_yaw;
-    /* Publish all the values */
-    this->_trajectory_publisher->publish(set);
-  }
+  set.pose.position.x = base_ref.x();
+  set.pose.position.y = base_ref.y();
+  set.pose.position.z = base_ref.z();
+  set.pose.orientation.z = sin(this->_reference_yaw * 0.5);
+  set.pose.orientation.w = cos(this->_reference_yaw * 0.5);
 
+  /* Publish all the values */
+  this->_trajectory_publisher->publish(set);
   this->_reference_publisher->publish(ref);
 }
 

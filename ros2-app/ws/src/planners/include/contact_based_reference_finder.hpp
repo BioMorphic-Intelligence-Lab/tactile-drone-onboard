@@ -67,10 +67,8 @@ public:
 
         this->_reference_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>(
             this->get_parameter("reference_topic").as_string(), 10);
-        this->_offboard_publisher = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
-            "/fmu/in/offboard_control_mode", 10);
-        this->_trajectory_publisher = this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-            "/fmu/in/trajectory_setpoint", 10);
+        this->_trajectory_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+            "/base_reference", 10);
     
 
     }
@@ -99,8 +97,7 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr _status_subscription;
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _reference_publisher;
-    rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr _trajectory_publisher;
-    rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr _offboard_publisher;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _trajectory_publisher;
 
     /* Utility Functions */
     Eigen::Vector3d _relative_forward_kinematics(Eigen::Vector4d xi);
