@@ -42,7 +42,7 @@ public:
         this->_beginning = this->now();
 
         /* Init Ref Pose */
-        this->_ref_pos = {0.0, 0.0, -3.0};
+        this->_ref_pos = {0.0, 0.0, -2.0};
         this->_ref_yaw = 0.0;
 
     }
@@ -80,11 +80,14 @@ private:
     {
         if (_offboard_setpoint_counter == 10) 
         {
+            /* On the real system we want to arm and change mode using the remote control
+               Uncomment this for the SITL e.g. automatic arming and switch to offboard mode */
+               
             // Change to Offboard mode after 10 setpoints
-            this->_publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
+            //this->_publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 
             // Arm the vehicle
-            this->arm();
+            //this->arm();
 
         }
 
@@ -109,7 +112,7 @@ private:
         double t = (this->now() - this->_beginning).seconds();
 
         // We start by just taking off and hovering above the ground
-        Eigen::Vector3d reference = {0, 0, -3.0};
+        Eigen::Vector3d reference = {0, 0, -2.0};
         float yaw = 0;
 
         // Mission duration
@@ -129,8 +132,7 @@ private:
 
         msg.position = {reference.x(), reference.y(), reference.z()};
         msg.yaw = yaw; // [-PI:PI]
-        msg.timestamp = (uint64_t)(this->get_clock()->now().nanoseconds() * 0.001);
-
+        msg.timestamp = this->get_timestamp();
         this->_trajectory_publisher->publish(msg);
     }
 
@@ -146,7 +148,7 @@ private:
         msg.acceleration = false;
         msg.attitude = false;
         msg.body_rate = false;
-        msg.timestamp = (uint64_t) (this->get_clock()->now().nanoseconds() * 0.001);
+        msg.timestamp = this->get_timestamp();
         _offboard_publisher->publish(msg);
     }
 
@@ -253,7 +255,7 @@ private:
         msg.source_component = 1;
         msg.from_external = true;
         msg.timestamp = this->get_timestamp();
-        _vehicle_command_pub->publish(msg);
+        this->_vehicle_command_pub->publish(msg);
     }
 
 };
