@@ -48,8 +48,6 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     /* Init the subscribers and publishers */
     this->_force_subscription = this->create_subscription<geometry_msgs::msg::WrenchStamped>(
         this->get_parameter("force_topic").as_string(), 10, std::bind(&ContactBasedReferenceFinder::_force_callback, this, std::placeholders::_1));
-    this->_joint_subscription = this->create_subscription<sensor_msgs::msg::JointState>(
-        "joint_states", rclcpp::SensorDataQoS(), std::bind(&ContactBasedReferenceFinder::_joint_callback, this, std::placeholders::_1));
     this->_vehicle_subscription = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
         "/fmu/out/vehicle_odometry", rclcpp::SensorDataQoS(), std::bind(&ContactBasedReferenceFinder::_vehicle_callback, this, std::placeholders::_1));
     this->_status_subscription = this->create_subscription<px4_msgs::msg::VehicleStatus>(
@@ -60,21 +58,39 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     this->_trajectory_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/base_reference", 10);
 
-    /* Init the service client */
-    this->_service_client = this->create_client<std_srvs::srv::Trigger>("calibrate_bias");
+    /* Init the service clients */
+    this->_bias_service_client = this->create_client<std_srvs::srv::Trigger>("calibrate_bias");
+    this->_joint_service_client = this->create_client<custom_interfaces::srv::GetJointState>("get_joint_state");
 
     /* Call the service to calibrate the force offset */
-    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto bias_request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto joint_request = std::make_shared<custom_interfaces::srv::GetJointState::Request>();
 
-    while (!this->_service_client->wait_for_service(1s)) {
+    while (!this->_bias_service_client->wait_for_service(1s)) {
       if (!rclcpp::ok()) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
         break;
       }
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Bias service not available, waiting again...");
     }
 
-    auto result = this->_service_client->async_send_request(request);
+    while (!this->_joint_service_client->wait_for_service(1s)) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+        break;
+      }
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Joint service not available, waiting again...");
+    }
+
+    auto bias_result = this->_bias_service_client->async_send_request(bias_request);
+    // TODO check if I need to wait for this response
+    auto joint_result = this->_joint_service_client->async_send_request(joint_request);
+
+    /* Save the current joint state as nominal */
+    this->_nominal_joint_state = {joint_result.get()->joint_state.position[0],
+                                  joint_result.get()->joint_state.position[1],
+                                  joint_result.get()->joint_state.position[2],
+                                  joint_result.get()->joint_state.position[3]};
 
 }
 
@@ -83,7 +99,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 {
   
   /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
-  Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_joint_state);
+  Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
   double error = (this->_reference - ee).norm();
 
   if(error < 0.25 * this->_alpha)
@@ -117,8 +133,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
  
 
   /* Compute the respective reference position of the base */
-  // TODO this should be done from the nominal joint state, not the actual one
-  Eigen::Vector3d base_ref = this->_reference - rot_z(this->_reference_yaw) * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_joint_state));
+  Eigen::Vector3d base_ref = this->_reference - rot_z(this->_reference_yaw) * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_nominal_joint_state));
 
   geometry_msgs::msg::PoseStamped set;
   set.header.stamp = now;
@@ -155,13 +170,6 @@ void ContactBasedReferenceFinder::_vehicle_callback(const px4_msgs::msg::Vehicle
   this->_x.z() = position.z(); 
 
   this->_q = orientation;
-}
-
-void ContactBasedReferenceFinder::_joint_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
-{
-  Eigen::Vector4d q;
-  q << msg->position[0], msg->position[1], msg->position[2], msg->position[3];
-  this->_joint_state = q;
 }
 
 Eigen::Vector3d ContactBasedReferenceFinder::_relative_forward_kinematics(Eigen::Vector4d xi)

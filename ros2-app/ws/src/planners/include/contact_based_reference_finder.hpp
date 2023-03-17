@@ -3,6 +3,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "custom_interfaces/srv/get_joint_state.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
@@ -17,16 +18,23 @@ public:
 
 private: 
 
+    /* Current ee position reference */
     Eigen::Vector3d _reference;
-    Eigen::Vector4d _joint_state;
 
+    /* Nominal robotic finger state */
+    Eigen::Vector4d _nominal_joint_state;
+
+    /* Current base pose and orientation*/
     Eigen::Vector3d _x;
     Eigen::Quaterniond _q;
 
+    /* Step between references and current reference yaw*/
     double _alpha, _reference_yaw;
 
+    /* PX4 navigation state */
     uint8_t _nav_state;
 
+    /* Robotic Kinematic parameters */
     std::vector<double> _l;
     Eigen::Vector3d _offset;
     Eigen::Matrix3d _base;
@@ -34,15 +42,15 @@ private:
 
     /* Publishers and Subscribers */
     rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr _force_subscription;
-    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr _joint_subscription;
     rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr _vehicle_subscription;
     rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr _status_subscription;
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _reference_publisher;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _trajectory_publisher;
 
-    /* Service Client to calibrate force bias */
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr _service_client;
+    /* Service Client to calibrate force bias and get joint state*/
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr _bias_service_client;
+    rclcpp::Client<custom_interfaces::srv::GetJointState>::SharedPtr _joint_service_client;
 
     /* Utility Functions */
     Eigen::Vector3d _relative_forward_kinematics(Eigen::Vector4d xi);
@@ -55,7 +63,6 @@ private:
 
     /* Callback Functions */
     void _force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
-    void _joint_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
     void _vehicle_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
     void _status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg);
 

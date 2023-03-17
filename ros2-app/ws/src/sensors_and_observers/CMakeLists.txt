@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(custom_interfaces REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 ########### Add include directory for Eigen ###################
@@ -22,7 +23,7 @@ include_directories(
 ########### Executable for encoder node #######################
 add_executable(encoder_node src/encoder_node.cpp
                             src/cui-devices-amt-10x-driver/cui_devices_amt10x.cpp)
-ament_target_dependencies(encoder_node rclcpp sensor_msgs)
+ament_target_dependencies(encoder_node rclcpp sensor_msgs custom_interfaces)
 target_link_libraries(encoder_node ${catkin_LIBRARIES} -lwiringPi)
 target_include_directories(encoder_node PUBLIC include/sensors_and_observers src/cui-devices-amt-10x-driver)
 
