@@ -69,7 +69,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     while (!this->_bias_service_client->wait_for_service(1s)) {
       if (!rclcpp::ok()) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-        break;
+        exit(0);
       }
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Bias service not available, waiting again...");
     }
@@ -77,7 +77,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     while (!this->_joint_service_client->wait_for_service(1s)) {
       if (!rclcpp::ok()) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-        break;
+        exit(0);
       }
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Joint service not available, waiting again...");
     }
