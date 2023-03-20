@@ -77,7 +77,7 @@ void BaseReferencePositionPub::_publish_trajectory_setpoint()
     float yaw = 0;
 
     // Mission duration
-    if(t > 15 && t <= 100)
+    if(t > 15 && t <= 10000)
     {
         reference = this->_ref_pos; 
         yaw = this->_ref_yaw;
