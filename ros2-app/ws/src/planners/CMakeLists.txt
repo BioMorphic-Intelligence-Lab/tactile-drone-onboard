@@ -33,13 +33,16 @@ target_compile_features(contact_based_reference_finder PUBLIC c_std_99 cxx_std_1
 add_executable(fake_wrench_publisher src/fake_wrench_publisher.cpp)
 ament_target_dependencies(fake_wrench_publisher rclcpp geometry_msgs)
 
+add_executable(ee_position_test src/ee_position_test.cpp)
+ament_target_dependencies(ee_position_test rclcpp sensor_msgs geometry_msgs Eigen3 px4_msgs px4_ros_com custom_interfaces)
+
 add_executable(base_reference_position_publisher src/base_reference_position_publisher.cpp)
 ament_target_dependencies(base_reference_position_publisher rclcpp geometry_msgs px4_msgs px4_ros_com Eigen3)
 target_include_directories(base_reference_position_publisher PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/planners>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS contact_based_reference_finder base_reference_position_publisher fake_wrench_publisher 
+install(TARGETS contact_based_reference_finder base_reference_position_publisher fake_wrench_publisher ee_position_test
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
