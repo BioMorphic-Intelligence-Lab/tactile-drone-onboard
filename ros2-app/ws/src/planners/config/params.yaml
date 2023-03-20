@@ -8,7 +8,7 @@ contact_based_reference_finder:
       l: [0.025, 0.025, 0.0578, 0.058, 0.045] # Link Length [m]
       alignments:
         offset: [0.2, 0.0, 0.0] # Translation vector from base coordinate system to arm base
-        base: [3.14159265359, 0.0, -1.57079632679] # Rotation of the base coordinate system to the arm base
+        base: [3.14159265359, 0.0, 3.14159265359] # Rotation of the base coordinate system to the arm base
         align0: [0.0, 0.0, 0.0] # Rotation from base to joint 0
         align1: [0.0, 0.0, 1.57079632679] # Rotation from joint 0 to joint 1
         align2: [0.0, 0.0, 3.14159265359] # Rotation from joint 1 to joint 2

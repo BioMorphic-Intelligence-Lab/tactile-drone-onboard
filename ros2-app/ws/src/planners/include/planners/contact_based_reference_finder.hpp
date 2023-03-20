@@ -56,6 +56,8 @@ private:
     Eigen::Vector3d _relative_forward_kinematics(Eigen::Vector4d xi);
     Eigen::Vector3d _forward_kinematics(Eigen::Vector3d x, Eigen::Quaterniond q, Eigen::Vector4d xi);
 
+    void _update_nominal_configuration();
+
     /* Static Utility Functions */
     static Eigen::Matrix3d rot_x(double theta);
     static Eigen::Matrix3d rot_y(double theta);

@@ -12,7 +12,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     this->declare_parameter("alpha", 0.2);
     this->declare_parameter("robot_params.l", std::vector<double>{0.025, 0.025, 0.0578, 0.058, 0.045});
     this->declare_parameter("robot_params.alignments.offset", std::vector<double>{0.2, 0, 0});
-    this->declare_parameter("robot_params.alignments.base", std::vector<double>{M_PI, 0, -M_PI_2});
+    this->declare_parameter("robot_params.alignments.base", std::vector<double>{M_PI, 0, M_PI});
     this->declare_parameter("robot_params.alignments.align0", std::vector<double>{0, 0, 0});
     this->declare_parameter("robot_params.alignments.align1", std::vector<double>{0, 0, M_PI_2});
     this->declare_parameter("robot_params.alignments.align2", std::vector<double>{0, 0, M_PI});
@@ -64,8 +64,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
 
     /* Call the service to calibrate the force offset */
     auto bias_request = std::make_shared<std_srvs::srv::Trigger::Request>();
-    auto joint_request = std::make_shared<custom_interfaces::srv::GetJointState::Request>();
-
+   
     while (!this->_bias_service_client->wait_for_service(1s)) {
       if (!rclcpp::ok()) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
@@ -83,17 +82,30 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     }
 
     auto bias_result = this->_bias_service_client->async_send_request(bias_request);
-    // TODO check if I need to wait for this response
-    auto joint_result = this->_joint_service_client->async_send_request(joint_request);
-
-    /* Save the current joint state as nominal */
-    this->_nominal_joint_state = {joint_result.get()->joint_state.position[0],
-                                  joint_result.get()->joint_state.position[1],
-                                  joint_result.get()->joint_state.position[2],
-                                  joint_result.get()->joint_state.position[3]};
+    
+    this->_update_nominal_configuration();
 
 }
 
+
+void ContactBasedReferenceFinder::_update_nominal_configuration()
+{
+
+    auto joint_request = std::make_shared<custom_interfaces::srv::GetJointState::Request>();
+
+    auto response_received_callback = [this]
+    (rclcpp::Client<custom_interfaces::srv::GetJointState>::SharedFuture future) {
+        /* Save the current joint state as nominal */
+        this->_nominal_joint_state = {future.get()->joint_state.position[0],
+                                    future.get()->joint_state.position[1],
+                                    future.get()->joint_state.position[2],
+                                    future.get()->joint_state.position[3]};
+
+        RCLCPP_INFO(this->get_logger(), "Nominal Robot Finger configuration set");
+    };
+
+    auto joint_result = this->_joint_service_client->async_send_request(joint_request, response_received_callback);
+}
 
 void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
 {
@@ -105,18 +117,16 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   if(error < 0.25 * this->_alpha)
   {
     /* Extract*/
-    Eigen::Vector3d force, unit_z, unit_x;
+    Eigen::Vector3d force;
     force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
-    unit_x << 1, 0, 0;
-    unit_z << 0, 0, 1;
 
     /* Compute the reference yaw */
-    this->_reference_yaw += acos(force.dot(unit_x) / (force.norm()));
+    this->_reference_yaw += acos(force.dot(Eigen::Vector3d::UnitX()) / (force.norm()));
 
     /* Transform the force into the world coordinate system */
     force = this->_base.transpose() * force;
     /* Compute the new reference position based on the contact force */
-    this->_reference += this->_alpha * (force.cross(unit_z).normalized());
+    this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
 
   }
 
