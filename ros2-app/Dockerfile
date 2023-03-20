@@ -21,7 +21,10 @@ ADD ws/ ./ws/
 WORKDIR /home/user/ros/TactileDrone/ws
 
 # Setup workspace
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --packages-select px4_msgs px4_ros_com
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --packages-select custom_interfaces
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --packages-select sensors_and_observers
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --packages-select planners
 
 # Add the entrypoint script
 ADD entrypoint.sh /entrypoint.sh
