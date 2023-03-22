@@ -34,7 +34,7 @@ add_executable(fake_wrench_publisher src/fake_wrench_publisher.cpp)
 ament_target_dependencies(fake_wrench_publisher rclcpp geometry_msgs)
 
 add_executable(ee_position_test src/ee_position_test.cpp)
-ament_target_dependencies(ee_position_test rclcpp sensor_msgs geometry_msgs Eigen3 px4_msgs px4_ros_com custom_interfaces)
+ament_target_dependencies(ee_position_test rclcpp sensor_msgs geometry_msgs std_srvs Eigen3 px4_msgs px4_ros_com custom_interfaces)
 
 add_executable(base_reference_position_publisher src/base_reference_position_publisher.cpp)
 ament_target_dependencies(base_reference_position_publisher rclcpp geometry_msgs px4_msgs px4_ros_com Eigen3)

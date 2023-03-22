@@ -3,6 +3,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "custom_interfaces/srv/get_joint_state.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
@@ -64,7 +65,19 @@ public:
         this->_trajectory_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/base_reference", rclcpp::SensorDataQoS());
 
         /* Init the service clients */
+        this->_bias_service_client = this->create_client<std_srvs::srv::Trigger>("calibrate_bias");
         this->_joint_service_client = this->create_client<custom_interfaces::srv::GetJointState>("get_joint_state");
+
+        /* Call the service to calibrate the force offset */
+        auto bias_request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    
+        while (!this->_bias_service_client->wait_for_service(1s)) {
+        if (!rclcpp::ok()) {
+                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+                exit(0);
+            }
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Bias service not available, waiting again...");
+        }
 
         /* Call the service to get the nominal joint state */
         while (!this->_joint_service_client->wait_for_service(1s)) {
@@ -75,8 +88,10 @@ public:
             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Joint service not available, waiting again...");
         }
 
-
+        auto bias_result = this->_bias_service_client->async_send_request(bias_request);
+    
         this->_update_nominal_configuration();
+        this->counter = 0;
 
         this->_timer = this->create_wall_timer(1.0 / this->_frequency * 1s,
                                         std::bind(&EEPositionTest::_timer_callback, this));
@@ -91,6 +106,7 @@ private:
     rclcpp::Time _beginning;
     rclcpp::TimerBase::SharedPtr _timer;
 
+    int counter;
     /* Current ee position reference */
     Eigen::Vector3d _reference;
     double _reference_yaw, _frequency;
@@ -116,6 +132,7 @@ private:
 
     /* Service Client to calibrate force bias and get joint state*/
     rclcpp::Client<custom_interfaces::srv::GetJointState>::SharedPtr _joint_service_client;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr _bias_service_client;
 
     void _update_nominal_configuration()
     {
@@ -139,15 +156,22 @@ private:
     void _timer_callback()
     {
         /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
-        Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
-        double error = (this->_reference - ee).norm();
+        double dt = (this->now() - this->_beginning).seconds();
 
-        if(error < 0.05)
+        if(dt < 15)
         {
-            Eigen::Vector3d addon = {0.2, 0.2, 0};
-            double addon_yaw = 0.2;
-            this->_reference += addon;
-            this->_reference_yaw += addon_yaw;
+            this->_reference = {0.0, 0.0, 1.5};
+            this->_reference_yaw = M_PI_2;
+        }
+        else if(dt > 15 && dt < 60)
+        {
+            this->_reference = {0.0, 1.95, 1.5};
+            this->_reference_yaw = M_PI_2; 
+        }
+        else if(dt > 60)
+        {
+            this->_reference = {0.0, 0.0, 1.5};
+            this->_reference_yaw = M_PI_2;
         }
 
         Eigen::Vector3d eg_base_ref = this->_reference - rot_z(this->_reference_yaw) * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_nominal_joint_state));
