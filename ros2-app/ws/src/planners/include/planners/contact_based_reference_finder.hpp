@@ -18,6 +18,9 @@ public:
 
 private: 
 
+    /* Start time */
+    rclcpp::Time _beginning;
+
     /* Current ee position reference */
     Eigen::Vector3d _reference;
 
@@ -33,6 +36,9 @@ private:
 
     /* PX4 navigation state */
     uint8_t _nav_state;
+
+    /* Whether we started being in contact */
+    bool _experiment_running;
 
     /* Robotic Kinematic parameters */
     std::vector<double> _l;

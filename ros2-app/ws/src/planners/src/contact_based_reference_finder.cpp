@@ -1,12 +1,12 @@
 #include "contact_based_reference_finder.hpp"
 
 ContactBasedReferenceFinder::ContactBasedReferenceFinder()
-        : Node("contact_based_reference_finder")
+        : Node("contact_based_reference_finder"), _experiment_running(false)
 {   
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{1.0, 1.0, 1.0});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.95, 1.5});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
     this->declare_parameter("alpha", 0.2);
@@ -20,9 +20,8 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     this->declare_parameter("robot_params.alignments.align4", std::vector<double>{0, 0,-M_PI_2});
 
     /* Actually get all the parameters */
-    std::vector<double> reference_vect = this->get_parameter("init_reference").as_double_array();
-    this->_reference = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(reference_vect.data(), reference_vect.size());
-    this->_reference_yaw = 0;
+    this->_reference = {0.0, 0.0, 1.5};
+    this->_reference_yaw = M_PI_2;
     this->_alpha  = this->get_parameter("alpha").as_double();
     this->_nav_state = px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_MAX;
 
@@ -85,6 +84,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     
     this->_update_nominal_configuration();
 
+    this->_beginning = this->now();
 }
 
 
@@ -109,55 +109,81 @@ void ContactBasedReferenceFinder::_update_nominal_configuration()
 
 void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
 {
-  
-  /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
-  Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
-  double error = (this->_reference - ee).norm();
+  double dt = (this->now() - this->_beginning).seconds();
 
-  if(error < 0.25 * this->_alpha)
+  /* For the first 15 seconds we just take of and hover */
+  if(dt < 15)
   {
-    /* Extract*/
-    Eigen::Vector3d force;
-    force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
+      this->_reference = {0.0, 0.0, 1.5};
+      this->_reference_yaw = M_PI_2;
+  }
+  /* After that we update the reference according to contact */
+  else if(dt > 15)
+  {
 
-    /* Compute the reference yaw */
-    this->_reference_yaw += acos(force.dot(Eigen::Vector3d::UnitX()) / (force.norm()));
+    /* The first time we enter this block we update the reference to a point inside the wall */
+    if(!this->_experiment_running)
+    {
+      std::vector<double> reference_vect = this->get_parameter("init_reference").as_double_array();
+      this->_reference = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(reference_vect.data(), reference_vect.size());
+      this->_reference_yaw = M_PI_2;
 
-    /* Transform the force into the world coordinate system */
-    force = this->_base.transpose() * force;
-    /* Compute the new reference position based on the contact force */
-    this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
+      this->_experiment_running = true;
+    }
+    /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
+    Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
+    double error = (this->_reference - ee).norm();
 
+    if(error < 0.25 * this->_alpha)
+    {
+      /* Extract*/
+      Eigen::Vector3d force;
+      force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
+
+      /* We only update the reference yaw if the force exceeds a certain threshold */
+      if(force.x() > 0.1 || force.y() > 0.1)
+      {
+        /* Compute the reference yaw */
+        this->_reference_yaw += asin(force.y() / force.x());
+      }
+
+      /* Transform the force into the world coordinate system */
+      force = this->_base.transpose() * force;
+      /* Compute the new reference position based on the contact force */
+      this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
+    }
   }
 
+  /* Get the current time stamp */
   rclcpp::Time now = this->now();
 
-  geometry_msgs::msg::PoseStamped ref;
-  ref.header.stamp = now;
-  ref.header.frame_id = "world";
-  ref.pose.position.x = this->_reference(0);
-  ref.pose.position.y = this->_reference(1);
-  ref.pose.position.z = this->_reference(2);
-  ref.pose.orientation.z = sin(this->_reference_yaw * 0.5);
-  ref.pose.orientation.w = cos(this->_reference_yaw * 0.5);
+  /* Fill the EE Reference message */
+  geometry_msgs::msg::PoseStamped ee_ref;
+  ee_ref.header.stamp = now;
+  ee_ref.header.frame_id = "world";
+  ee_ref.pose.position.x = this->_reference(0);
+  ee_ref.pose.position.y = this->_reference(1);
+  ee_ref.pose.position.z = this->_reference(2);
+  ee_ref.pose.orientation.z = sin(this->_reference_yaw * 0.5);
+  ee_ref.pose.orientation.w = cos(this->_reference_yaw * 0.5);
  
-
   /* Compute the respective reference position of the base */
   Eigen::Vector3d base_ref = this->_reference - rot_z(this->_reference_yaw) * (this->_offset + this->_base * this->_relative_forward_kinematics(this->_nominal_joint_state));
 
-  geometry_msgs::msg::PoseStamped set;
-  set.header.stamp = now;
-  set.header.frame_id = "world";
+  /* Fill the base reference message */
+  geometry_msgs::msg::PoseStamped base_ref_msg;
+  base_ref_msg.header.stamp = now;
+  base_ref_msg.header.frame_id = "world";
 
-  set.pose.position.x = base_ref.x();
-  set.pose.position.y = base_ref.y();
-  set.pose.position.z = base_ref.z();
-  set.pose.orientation.z = sin(this->_reference_yaw * 0.5);
-  set.pose.orientation.w = cos(this->_reference_yaw * 0.5);
+  base_ref_msg.pose.position.x = base_ref.x();
+  base_ref_msg.pose.position.y = base_ref.y();
+  base_ref_msg.pose.position.z = base_ref.z();
+  base_ref_msg.pose.orientation.z = sin(this->_reference_yaw * 0.5);
+  base_ref_msg.pose.orientation.w = cos(this->_reference_yaw * 0.5);
 
   /* Publish all the values */
-  this->_trajectory_publisher->publish(set);
-  this->_reference_publisher->publish(ref);
+  this->_reference_publisher->publish(ee_ref);
+  this->_trajectory_publisher->publish(base_ref_msg);
 }
 
 void ContactBasedReferenceFinder::_status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg)
