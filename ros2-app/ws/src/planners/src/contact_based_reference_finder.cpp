@@ -6,7 +6,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.95, 1.5});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.25, 1.6});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
     this->declare_parameter("alpha", 0.2);
@@ -133,22 +133,35 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
     Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
     double error = (this->_reference - ee).norm();
+    double yaw = atan2(2 * ((this->_q.x() * this->_q.y()) + (this->_q.w() * this->_q.z())),
+        this->_q.w()*this->_q.w() + this->_q.x()*this->_q.x() - this->_q.y()*this->_q.y() - this->_q.z()*this->_q.z());
 
-    if(error < 0.25 * this->_alpha)
+    if(error < 0.25 * this->_alpha &&
+       fabs(yaw - this->_reference_yaw) < 0.25)
     {
       /* Extract*/
       Eigen::Vector3d force;
       force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
 
-      /* We only update the reference yaw if the force exceeds a certain threshold */
-      if(force.x() > 0.1 || force.y() > 0.1)
-      {
-        /* Compute the reference yaw */
-        this->_reference_yaw += asin(force.y() / force.x());
-      }
-
       /* Transform the force into the world coordinate system */
       force = this->_base.transpose() * force;
+
+      /* Avoid yaw updates based on too small force values */
+      if(fabs(force.x()) > 0.1 && fabs(force.y()) > 0.1)
+      {        
+        /* Compute the reference yaw 
+         * Angle between to vectors: arccos(DOT(f, e_x) / |f|)  but since we're only considering 
+         * the angle in the ground plane we treat the vector as a 2D vector */
+        double relative_angle = (force.y() > 0) ? 
+                - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
+                  acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));                ;
+        this->_reference_yaw += relative_angle;
+
+      }
+    
+      /* For the position propagation we also need to transform the force vector using the current base orientation */
+      force = this->_q.toRotationMatrix() * force;
+
       /* Compute the new reference position based on the contact force */
       this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
     }
