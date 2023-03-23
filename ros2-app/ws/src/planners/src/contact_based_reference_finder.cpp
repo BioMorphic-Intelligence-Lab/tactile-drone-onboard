@@ -130,35 +130,42 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
       this->_experiment_running = true;
     }
+
     /* We only update the reference position if we're close enoug to it, i.e. we can consider it to be reached */
     Eigen::Vector3d ee = this->_forward_kinematics(this->_x, this->_q, this->_nominal_joint_state);
     double error = (this->_reference - ee).norm();
     double yaw = atan2(2 * ((this->_q.x() * this->_q.y()) + (this->_q.w() * this->_q.z())),
         this->_q.w()*this->_q.w() + this->_q.x()*this->_q.x() - this->_q.y()*this->_q.y() - this->_q.z()*this->_q.z());
 
-    if(error < 0.25 * this->_alpha &&
-       fabs(yaw - this->_reference_yaw) < 0.25)
+    /* Extract*/
+    Eigen::Vector3d force;
+    force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
+
+    if(error < 0.25 * this->_alpha && // Only update when the reference position is sufficiently achieved
+       fabs(yaw - this->_reference_yaw) < 0.2 && // Only update when the reference yaw is sufficiently achieved
+       force.norm() > 0.1 && // Only update when the force magnitude is enough
+       force.x() > 0)  // Only update on positive x-force e.g. we are in contact with the wall
     {
-      /* Extract*/
-      Eigen::Vector3d force;
-      force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
 
       /* Transform the force into the world coordinate system */
       force = this->_base.transpose() * force;
 
-      /* Avoid yaw updates based on too small force values */
-      if(fabs(force.x()) > 0.1 && fabs(force.y()) > 0.1)
-      {        
+      /* The yaw is even more subsceptible to noise,
+       * hence we update it only once we experience
+       * a larger lateral force */
+      if(fabs(force.y()) > 0.2)
+      {
         /* Compute the reference yaw 
-         * Angle between to vectors: arccos(DOT(f, e_x) / |f|)  but since we're only considering 
-         * the angle in the ground plane we treat the vector as a 2D vector */
+          * Angle between to vectors: arccos(DOT(f, e_x) / |f|)
+          * but since we're only considering
+          * the angle in the ground plane we
+          * treat the vector as a 2D vector */
         double relative_angle = (force.y() > 0) ? 
                 - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
                   acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));                ;
         this->_reference_yaw += relative_angle;
-
       }
-    
+
       /* For the position propagation we also need to transform the force vector using the current base orientation */
       force = this->_q.toRotationMatrix() * force;
 
