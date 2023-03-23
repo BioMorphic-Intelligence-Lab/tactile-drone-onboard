@@ -45,6 +45,18 @@ target_include_directories(base_reference_position_publisher PUBLIC
 install(TARGETS contact_based_reference_finder base_reference_position_publisher fake_wrench_publisher ee_position_test
   DESTINATION lib/${PROJECT_NAME})
 
+########### Add Launch Directory ########
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+########## Add Config Directory #########
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
