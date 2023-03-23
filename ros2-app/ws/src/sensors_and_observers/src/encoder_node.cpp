@@ -34,7 +34,7 @@ EncoderNode::EncoderNode()
     uint16_t f = this->get_parameter("state_pub_fr").as_int();
 
     /* Init all the class members */
-    this->_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", rclcpp::SensorDataQoS());
+    this->_publisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10); //rclcpp::SensorDataQoS());
     this->_server = this->create_service<custom_interfaces::srv::GetJointState>(
 		    "get_joint_state", std::bind(&EncoderNode::_get_joint_state, this, std::placeholders::_1, std::placeholders::_2));
     this->_timer = this->create_wall_timer(std::chrono::milliseconds(int(1e3 * 1.0 / f)), std::bind(&EncoderNode::timer_callback, this));
@@ -49,6 +49,10 @@ EncoderNode::EncoderNode()
 void EncoderNode::_get_joint_state(const std::shared_ptr<custom_interfaces::srv::GetJointState::Request> request,
                                          std::shared_ptr<custom_interfaces::srv::GetJointState::Response> response)
 {
+
+    /* Unused because its empty anyways */
+    (void) request;
+
     auto message = sensor_msgs::msg::JointState();
     message.header.stamp = this->now();
     message.header.frame_id = this->get_name();

@@ -39,7 +39,7 @@ public:
     /* Init all the class members */
     this->_force_publisher = this->create_publisher<geometry_msgs::msg::WrenchStamped>("wrench", 10);
     this->_joint_subscriber = this->create_subscription<sensor_msgs::msg::JointState>(
-      "joint_states", rclcpp::SensorDataQoS(), std::bind(&ForceEstimatorNode::_joint_callback, this, std::placeholders::_1));
+      "joint_states", 10 /*rclcpp::SensorDataQoS()*/, std::bind(&ForceEstimatorNode::_joint_callback, this, std::placeholders::_1));
 		/* Init the service server for resetting the oserver */
 		this->_bias_server = this->create_service<std_srvs::srv::Trigger>(
 		    "calibrate_bias", std::bind(&ForceEstimatorNode::_calibrate_bias, this, std::placeholders::_1, std::placeholders::_2));
