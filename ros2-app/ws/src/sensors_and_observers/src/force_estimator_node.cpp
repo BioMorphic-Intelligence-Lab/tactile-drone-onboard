@@ -301,9 +301,9 @@ void ForceEstimatorNode::_calibrate_bias(const std::shared_ptr<std_srvs::srv::Tr
 {
 	RCLCPP_INFO(this->get_logger(), "Calibrating Force Estimator Bias");
     (void) request;
-    this->bias(0) = this->_force.at(0);
-    this->bias(1) = this->_force.at(1);
-    this->bias(2) = this->_force.at(2);
+    this->bias(0) += this->_force.at(0);
+    this->bias(1) += this->_force.at(1);
+    this->bias(2) += this->_force.at(2);
 
     response->success = true;
     std::stringstream ss;
