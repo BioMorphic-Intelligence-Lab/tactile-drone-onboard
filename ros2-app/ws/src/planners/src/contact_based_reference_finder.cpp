@@ -6,7 +6,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.25, 1.6});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.15, 1.6});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
     this->declare_parameter("alpha", 0.2);
@@ -60,9 +60,6 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     /* Init the service clients */
     this->_bias_service_client = this->create_client<std_srvs::srv::Trigger>("calibrate_bias");
     this->_joint_service_client = this->create_client<custom_interfaces::srv::GetJointState>("get_joint_state");
-
-    /* Call the service to calibrate the force offset */
-    auto bias_request = std::make_shared<std_srvs::srv::Trigger::Request>();
    
     while (!this->_bias_service_client->wait_for_service(1s)) {
       if (!rclcpp::ok()) {
@@ -80,6 +77,8 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Joint service not available, waiting again...");
     }
 
+    /* Call the service to calibrate the force offset */
+    auto bias_request = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto bias_result = this->_bias_service_client->async_send_request(bias_request);
     
     this->_update_nominal_configuration();
@@ -141,36 +140,44 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     Eigen::Vector3d force;
     force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
 
-    if(error < 0.25 * this->_alpha && // Only update when the reference position is sufficiently achieved
-       fabs(yaw - this->_reference_yaw) < 0.2 && // Only update when the reference yaw is sufficiently achieved
+    if(error < 0.5 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 50 percent of the step size)
+       fabs(yaw - this->_reference_yaw) < 15 * M_PI * 0.005556 && // Only update when the reference yaw is sufficiently achieved (within 15 Degree)
        force.norm() > 0.1 && // Only update when the force magnitude is enough
        force.x() > 0)  // Only update on positive x-force e.g. we are in contact with the wall
     {
 
       /* Transform the force into the world coordinate system */
       force = this->_base.transpose() * force;
+      force(1) = -force(2); // TODO Double check this. I'm still doing something wrong with the reference frames....
+
+      RCLCPP_DEBUG(this->get_logger(), "Force in Body Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
 
       /* The yaw is even more subsceptible to noise,
        * hence we update it only once we experience
        * a larger lateral force */
-      if(fabs(force.y()) > 0.2)
+      if(fabs(force.y()) > 0.08 && fabs(force.x()) > 0.1)
       {
         /* Compute the reference yaw 
           * Angle between to vectors: arccos(DOT(f, e_x) / |f|)
           * but since we're only considering
           * the angle in the ground plane we
-          * treat the vector as a 2D vector */
+          * treat the vector as a 2D vector.
+          * The sign needs to be specifically added. */
         double relative_angle = (force.y() > 0) ? 
-                - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
-                  acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));                ;
-        this->_reference_yaw += relative_angle;
+                  acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
+                - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));
+        this->_reference_yaw += 0.1 * relative_angle;
+
       }
 
       /* For the position propagation we also need to transform the force vector using the current base orientation */
       force = this->_q.toRotationMatrix() * force;
 
+      RCLCPP_DEBUG(this->get_logger(), "Force in World Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
+
       /* Compute the new reference position based on the contact force */
       this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
+
     }
   }
 
