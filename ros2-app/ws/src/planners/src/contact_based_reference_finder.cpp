@@ -142,42 +142,49 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
 
     if(error < 0.5 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 50 percent of the step size)
        fabs(yaw - this->_reference_yaw) < 15 * M_PI * 0.005556 && // Only update when the reference yaw is sufficiently achieved (within 15 Degree)
-       force.norm() > 0.1 && // Only update when the force magnitude is enough
        force.x() > 0)  // Only update on positive x-force e.g. we are in contact with the wall
     {
-
-      /* Transform the force into the world coordinate system */
-      force = this->_base.transpose() * force;
-      force(1) = -force(2); // TODO Double check this. I'm still doing something wrong with the reference frames....
-
-      RCLCPP_DEBUG(this->get_logger(), "Force in Body Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
-
-      /* The yaw is even more subsceptible to noise,
-       * hence we update it only once we experience
-       * a larger lateral force */
-      if(fabs(force.y()) > 0.08 && fabs(force.x()) > 0.1)
+      RCLCPP_INFO(this->get_logger(), "Reached setpoint. Computing new reference:");
+      if(force.norm() > 0.1) // Only do the main update when the force magnitude is enough)
       {
-        /* Compute the reference yaw 
-          * Angle between to vectors: arccos(DOT(f, e_x) / |f|)
-          * but since we're only considering
-          * the angle in the ground plane we
-          * treat the vector as a 2D vector.
-          * The sign needs to be specifically added. */
-        double relative_angle = (force.y() > 0) ? 
-                  acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
-                - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));
-        this->_reference_yaw -= 0.1 * relative_angle;
+        RCLCPP_INFO(this->get_logger(), "Enough force present. Doing Main update");
+        /* Transform the force into the world coordinate system */
+        force = this->_base.transpose() * force;
+        force(1) = -force(2); // TODO Double check this. I'm still doing something wrong with the reference frames....
 
+        RCLCPP_DEBUG(this->get_logger(), "Force in Body Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
+
+        /* The yaw is even more subsceptible to noise,
+        * hence we update it only once we experience
+        * a larger lateral force */
+        if(fabs(force.y()) > 0.08 && fabs(force.x()) > 0.1)
+        {
+          /* Compute the reference yaw 
+            * Angle between to vectors: arccos(DOT(f, e_x) / |f|)
+            * but since we're only considering
+            * the angle in the ground plane we
+            * treat the vector as a 2D vector.
+            * The sign needs to be specifically added. */
+          //double relative_angle = (force.y() > 0) ? 
+          //          acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
+          //        - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));
+          this->_reference_yaw -= (force.y() > 0) ? -2.5 * M_PI * 0.005556 : 2.5 * M_PI * 0.005556;
+
+        }
+
+        /* For the position propagation we also need to transform the force vector using the current base orientation */
+        force = this->_q.toRotationMatrix() * force;
+
+        RCLCPP_DEBUG(this->get_logger(), "Force in World Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
+
+        /* Compute the new reference position based on the contact force */
+        this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
       }
-
-      /* For the position propagation we also need to transform the force vector using the current base orientation */
-      force = this->_q.toRotationMatrix() * force;
-
-      RCLCPP_DEBUG(this->get_logger(), "Force in World Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
-
-      /* Compute the new reference position based on the contact force */
-      this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
-
+      else // Otherwise we slowly propagate in direction of flight
+      {
+        RCLCPP_INFO(this->get_logger(), "No force detected - Moving forward");
+        this->_reference += 0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitX());
+      }
     }
   }
 
