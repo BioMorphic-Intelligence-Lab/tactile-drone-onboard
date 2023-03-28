@@ -6,7 +6,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.15, 1.6});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.0, 1.6});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
     this->declare_parameter("alpha", 0.2);
@@ -166,7 +166,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
         double relative_angle = (force.y() > 0) ? 
                   acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y())):
                 - acos(-force.x() / sqrt(force.x()*force.x() + force.y()*force.y()));
-        this->_reference_yaw += 0.1 * relative_angle;
+        this->_reference_yaw -= 0.1 * relative_angle;
 
       }
 
