@@ -30,8 +30,8 @@ BaseReferencePositionPub::BaseReferencePositionPub()
     this->_beginning = this->now();
 
     /* Init Ref Pose */
-    this->_ref_pos = {0.0, 0.0, -2.0};
-    this->_ref_yaw = 0.0;
+    this->_ref_pos = {0.0, 0.0, -1.5};
+    this->_ref_yaw = M_PI_2;
 
 }
 
@@ -64,37 +64,30 @@ void BaseReferencePositionPub::_timer_callback()
 }
 
 /**
- * @brief Publish a trajectory setpoint
- *        For this example, it sends a trajectory setpoint to make the
- *        vehicle hover at 5 meters with a yaw angle of 180 degrees.
+ * @brief Publish a trajectory setpoint.
  */
 void BaseReferencePositionPub::_publish_trajectory_setpoint()
 {
     double t = (this->now() - this->_beginning).seconds();
 
-    // We start by just taking off and hovering above the ground
-    Eigen::Vector3d reference = {0, 0, -2.0};
-    float yaw = 0;
-
     // Mission duration
-    if(t > 15 && t <= 10000)
+    if(t > 15 && t <= 1000)
     {
-        reference = this->_ref_pos; 
-        yaw = this->_ref_yaw;
+        px4_msgs::msg::TrajectorySetpoint msg{};
+        msg.position = {this->_ref_pos.x(),
+                        this->_ref_pos.y(),
+                        this->_ref_pos.z()};
+        msg.yaw = this->_ref_yaw; // [-PI:PI]
+        msg.timestamp = this->get_timestamp();
+        this->_trajectory_publisher->publish(msg);
     }
-    else if(t > 100 && !this->_landed)
+    else if(t > 1000 && !this->_landed)
     {
         this->_landed = true;
         this->land();
         return;
     }
 
-    px4_msgs::msg::TrajectorySetpoint msg{};
-
-    msg.position = {reference.x(), reference.y(), reference.z()};
-    msg.yaw = yaw; // [-PI:PI]
-    msg.timestamp = this->get_timestamp();
-    this->_trajectory_publisher->publish(msg);
 }
 
 /**
@@ -127,8 +120,9 @@ void BaseReferencePositionPub::_reference_callback(const geometry_msgs::msg::Pos
     position = px4_ros_com::frame_transforms::enu_to_ned_local_frame(position);
     this->_ref_pos = position;
 
+
     // This assumes the quaternion only describes yaw. Also directly transformed into the px4 frame
-    this->_ref_yaw = M_PI_2 - 2 * acos(msg->pose.orientation.w);
+    this->_ref_yaw = M_PI_2 - 2 * acos(-msg->pose.orientation.w);
 }
 
 void BaseReferencePositionPub::_timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)

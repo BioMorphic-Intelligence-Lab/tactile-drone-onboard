@@ -22,7 +22,7 @@ private:
     rclcpp::Time _beginning;
 
     /* Current ee position reference */
-    Eigen::Vector3d _reference;
+    Eigen::Vector3d _reference, _base_ref;
 
     /* Nominal robotic finger state */
     Eigen::Vector4d _nominal_joint_state;
@@ -68,6 +68,11 @@ private:
     static Eigen::Matrix3d rot_x(double theta);
     static Eigen::Matrix3d rot_y(double theta);
     static Eigen::Matrix3d rot_z(double theta);
+    static Eigen::Quaterniond ned2enu(Eigen::Quaterniond quat);
+    static Eigen::Vector3d ned2enu(Eigen::Vector3d vect);
+    static double to_angle_range(double angle);
+    static double yaw_from_quat(Eigen::Quaterniond quat);
+    
 
     /* Callback Functions */
     void _force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);

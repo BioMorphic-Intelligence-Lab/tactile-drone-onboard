@@ -25,7 +25,7 @@ private:
       message.header.frame_id = "arm_base";
 
       message.wrench.force.x = 0.2;
-      message.wrench.force.y = 0.15;
+      message.wrench.force.y = 0.05;
       message.wrench.force.z = 0.0;
       
       this->_wrench_publisher->publish(message);
