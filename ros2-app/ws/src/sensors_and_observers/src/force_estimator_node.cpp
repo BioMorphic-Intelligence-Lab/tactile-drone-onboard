@@ -38,6 +38,9 @@ std::vector<double> ForceEstimatorNode::_estimate_force(
     Eigen::Vector3f f = -this->pseudoInverse(J_EE.transpose())
                              * (gravity_cont + stiffness_cont - ctrl_cont) - this->bias;
 
+    /* Y axis force is hardly dependent on other axes than the first, thus we only take the first joint into account */
+    f(1) = - pos[0];
+
     std::vector<double> force = {f(0), f(1), f(2)};  
     return force;
 }
