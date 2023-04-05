@@ -31,7 +31,7 @@ BaseReferencePositionPub::BaseReferencePositionPub()
 
     /* Init Ref Pose */
     this->_ref_pos = {0.0, 0.0, -1.5};
-    this->_ref_yaw = M_PI_2;
+    this->_ref_yaw = 0.0;
 
 }
 
@@ -70,23 +70,21 @@ void BaseReferencePositionPub::_publish_trajectory_setpoint()
 {
     double t = (this->now() - this->_beginning).seconds();
 
-    // Mission duration
-    if(t > 15 && t <= 1000)
-    {
-        px4_msgs::msg::TrajectorySetpoint msg{};
-        msg.position = {this->_ref_pos.x(),
-                        this->_ref_pos.y(),
-                        this->_ref_pos.z()};
-        msg.yaw = this->_ref_yaw; // [-PI:PI]
-        msg.timestamp = this->get_timestamp();
-        this->_trajectory_publisher->publish(msg);
-    }
-    else if(t > 1000 && !this->_landed)
+    /* After mission time ran out */
+    if(t > 1000 && !this->_landed)
     {
         this->_landed = true;
         this->land();
         return;
     }
+
+    px4_msgs::msg::TrajectorySetpoint msg{};
+    msg.position = {this->_ref_pos.x(),
+                    this->_ref_pos.y(),
+                    this->_ref_pos.z()};
+    msg.yaw = this->_ref_yaw; // [-PI:PI]
+    msg.timestamp = this->get_timestamp();
+    this->_trajectory_publisher->publish(msg);
 
 }
 
@@ -120,9 +118,8 @@ void BaseReferencePositionPub::_reference_callback(const geometry_msgs::msg::Pos
     position = px4_ros_com::frame_transforms::enu_to_ned_local_frame(position);
     this->_ref_pos = position;
 
-
     // This assumes the quaternion only describes yaw. Also directly transformed into the px4 frame
-    this->_ref_yaw = M_PI_2 - 2 * acos(-msg->pose.orientation.w);
+    this->_ref_yaw = M_PI_2 - 2 * acos(msg->pose.orientation.w);
 }
 
 void BaseReferencePositionPub::_timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)

@@ -6,12 +6,12 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.0, 1.6});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.15, 1.6});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
-    this->declare_parameter("alpha", 0.2);
+    this->declare_parameter("alpha", 0.02);
     this->declare_parameter("robot_params.l", std::vector<double>{0.025, 0.025, 0.0578, 0.058, 0.045});
-    this->declare_parameter("robot_params.alignments.offset", std::vector<double>{0, 0.2, 0});
+    this->declare_parameter("robot_params.alignments.offset", std::vector<double>{0.0, 0.4, 0});
     this->declare_parameter("robot_params.alignments.base", std::vector<double>{-M_PI, 0.0, M_PI_2});
     this->declare_parameter("robot_params.alignments.align0", std::vector<double>{0, 0, 0});
     this->declare_parameter("robot_params.alignments.align1", std::vector<double>{0, 0, M_PI_2});
@@ -21,7 +21,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
 
     /* Actually get all the parameters */
     this->_reference = {0.0, 0.0, 1.5};
-    this->_reference_yaw = M_PI_2;
+    this->_reference_yaw = 0;
     this->_alpha  = this->get_parameter("alpha").as_double();
     this->_nav_state = px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_MAX;
 
@@ -124,8 +124,10 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     if(!this->_experiment_running)
     {
       std::vector<double> reference_vect = this->get_parameter("init_reference").as_double_array();
-      this->_reference = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(reference_vect.data(), reference_vect.size());
+      
       this->_reference_yaw = 0.0;
+      this->_reference = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(reference_vect.data(),
+                                                             reference_vect.size());
 
       this->_experiment_running = true;
     }
@@ -134,22 +136,32 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     double error = (this->_base_ref - this->_x).norm();
     double yaw = this->yaw_from_quat(this->_q);
     double yaw_error = fabs(this->to_angle_range(yaw - this->_reference_yaw));
-    
+
     /* Extract*/
     Eigen::Vector3d force;
     force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
-
-    RCLCPP_INFO(this->get_logger(), "Position p=[%f, %f, %f]", this->_x.x(),this->_x.y(),this->_x.z());
-    RCLCPP_INFO(this->get_logger(), "Reference p_ref=[%f, %f, %f]", this->_base_ref.x(),this->_base_ref.y(),this->_base_ref.z());
-    RCLCPP_INFO(this->get_logger(), "Error %f", error);
-    RCLCPP_DEBUG(this->get_logger(), "Yaw Error %f deg",  yaw_error * 180.0 / M_PI);
 
     if(error < 0.5 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 50 percent of the step size)
        yaw_error < 5 * M_PI * 0.005556 && // Only update when the reference yaw is sufficiently achieved (within 55 Degree)
        force.x() > 0)  // Only update on positive x-force (in finger base frame) e.g. we are in contact with the wall
     {
 
-      if(force.norm() > 0.1) // Only do the main update when the force magnitude is enough)
+      if(force.norm() < 0.2) // Only do the main update when the force magnitude is enough)
+      {
+        RCLCPP_INFO(this->get_logger(), "No force detected - Moving forward");
+        Eigen::Vector3d change = 0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+        change(2) = 0.0;
+        this->_reference += change;
+      }
+      // If exceed a force threshold we move back.
+      else if(force.norm() > 0.8)
+      {
+        RCLCPP_INFO(this->get_logger(), "Too much force detected - Moving backwards");
+        Eigen::Vector3d change = -0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+        change(2) = 0.0;
+        this->_reference += change;
+      }
+      else
       {
         RCLCPP_INFO(this->get_logger(), "Enough force present. Doing Main update");
         
@@ -161,31 +173,30 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
         /* The yaw is even more subsceptible to noise,
         * hence we update it only once we experience
         * a larger lateral force */
-        if(fabs(force.y()) > 0.08 && fabs(force.x()) > 0.1)
+        if(fabs(force.y()) > 0.1 && fabs(force.x()) > 0.1)
         {
           /* Compute the reference yaw 
             * Angle between a vectors and the frame x axis: atan2(f.y / f.x)
             */
           double relative_angle = atan2(force.x(), force.y());
-          this->_reference_yaw -= relative_angle;
+          this->_reference_yaw += this->_alpha * relative_angle;
 
         }
-
+  
         /* For the position propagation we also need to transform the force vector using the current base orientation */
-        force = this->rot_z(-M_PI_2) * this->_q.toRotationMatrix() * force;
+        force = this->_q.toRotationMatrix() * force;
 
         RCLCPP_DEBUG(this->get_logger(), "Force in World Frame: x %f, y %f, z %f", force.x(), force.y(), force.z());
 
         /* Compute the new reference position based on the contact force */
-        this->_reference += this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
-      }
-      else // Otherwise we slowly propagate in direction of flight
-      {
-        RCLCPP_INFO(this->get_logger(), "No force detected - Moving forward");
-        this->_reference += 0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+        Eigen::Vector3d change = this->_alpha * (force.cross(Eigen::Vector3d::UnitZ()).normalized());
+        change(2) = 0.0;
+        this->_reference += change;
+        
       }
     }
   }
+  
 
   /* Get the current time stamp */
   rclcpp::Time now = this->now();
@@ -230,7 +241,13 @@ void ContactBasedReferenceFinder::_vehicle_callback(const px4_msgs::msg::Vehicle
   Eigen::Quaterniond orientation = px4_ros_com::frame_transforms::utils::quaternion::array_to_eigen_quat(msg->q);
   Eigen::Vector3d position = Eigen::Vector3d(msg->position[0], msg->position[1], msg->position[2]);
 
-  orientation = this->ned2enu(orientation);
+  // NED to ENU
+  Eigen::Quaterniond q_copy(orientation);
+  orientation.x() = q_copy.y();
+  orientation.y() = q_copy.x();
+  orientation.z() = -q_copy.z();
+
+
   position = this->ned2enu(position);            
 
   this->_x.x() = position.x();
@@ -328,8 +345,7 @@ double ContactBasedReferenceFinder::to_angle_range(double angle)
 double ContactBasedReferenceFinder::yaw_from_quat(Eigen::Quaterniond quat)
 {
    return atan2(2 * ((quat.x() * quat.y()) + (quat.w() * quat.z())),
-        quat.w()*quat.w() + quat.x()*quat.x() - quat.y()*quat.y() - quat.z()*quat.z()) + M_PI_2;
-        // TODO why does this not give the right values
+        quat.w()*quat.w() + quat.x()*quat.x() - quat.y()*quat.y() - quat.z()*quat.z());
 }
 
 
