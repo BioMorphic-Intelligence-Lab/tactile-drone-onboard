@@ -119,7 +119,7 @@ void BaseReferencePositionPub::_reference_callback(const geometry_msgs::msg::Pos
     this->_ref_pos = position;
 
     // This assumes the quaternion only describes yaw. Also directly transformed into the px4 frame
-    this->_ref_yaw = M_PI_2 - 2 * acos(msg->pose.orientation.w);
+    this->_ref_yaw = -2 * acos(msg->pose.orientation.w);
 }
 
 void BaseReferencePositionPub::_timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)

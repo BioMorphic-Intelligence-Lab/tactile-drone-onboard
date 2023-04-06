@@ -9,7 +9,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     this->declare_parameter("init_reference", std::vector<double>{0.0, 1.15, 1.6});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
-    this->declare_parameter("alpha", 0.02);
+    this->declare_parameter("alpha", 0.4);
     this->declare_parameter("robot_params.l", std::vector<double>{0.025, 0.025, 0.0578, 0.058, 0.045});
     this->declare_parameter("robot_params.alignments.offset", std::vector<double>{0.0, 0.4, 0});
     this->declare_parameter("robot_params.alignments.base", std::vector<double>{-M_PI, 0.0, M_PI_2});
@@ -141,27 +141,19 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     Eigen::Vector3d force;
     force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
 
-    if(error < 0.5 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 50 percent of the step size)
-       yaw_error < 5 * M_PI * 0.005556 && // Only update when the reference yaw is sufficiently achieved (within 55 Degree)
-       force.x() > 0)  // Only update on positive x-force (in finger base frame) e.g. we are in contact with the wall
+    if(error < 0.3 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 30 percent of the step size)
+       yaw_error < 5 * M_PI * 0.005556  // Only update when the reference yaw is sufficiently achieved (within 55 Degree)
+      )  
     {
 
       if(force.norm() < 0.2) // Only do the main update when the force magnitude is enough)
       {
         RCLCPP_INFO(this->get_logger(), "No force detected - Moving forward");
-        Eigen::Vector3d change = 0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+        Eigen::Vector3d change = 0.1 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
         change(2) = 0.0;
         this->_reference += change;
       }
-      // If exceed a force threshold we move back.
-      else if(force.norm() > 0.8)
-      {
-        RCLCPP_INFO(this->get_logger(), "Too much force detected - Moving backwards");
-        Eigen::Vector3d change = -0.25 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
-        change(2) = 0.0;
-        this->_reference += change;
-      }
-      else
+      else if(force.x() >= 0) // Only update on positive x-force (in finger base frame) e.g. we are in contact with the wall
       {
         RCLCPP_INFO(this->get_logger(), "Enough force present. Doing Main update");
         
@@ -173,13 +165,14 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
         /* The yaw is even more subsceptible to noise,
         * hence we update it only once we experience
         * a larger lateral force */
-        if(fabs(force.y()) > 0.1 && fabs(force.x()) > 0.1)
+        if(fabs(force.x()) > 0.1 && force.norm() > 0.1)
         {
           /* Compute the reference yaw 
             * Angle between a vectors and the frame x axis: atan2(f.y / f.x)
             */
-          double relative_angle = atan2(force.x(), force.y());
-          this->_reference_yaw += this->_alpha * relative_angle;
+          //double relative_angle = atan2(force.x(), force.y());
+          this->_reference_yaw += force.x() > 0 ? 5 * M_PI * 0.00555555555 : 
+                                                 -5 * M_PI * 0.00555555555;
 
         }
   
@@ -194,6 +187,14 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
         this->_reference += change;
         
       }
+    }
+    // If exceed a force threshold we move back.
+    else if(force.norm() > 0.7)
+    {
+      RCLCPP_INFO(this->get_logger(), "Too much force detected - Moving backwards");
+      Eigen::Vector3d change = -0.1 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+      change(2) = 0.0;
+      this->_reference += change;
     }
   }
   

@@ -16,8 +16,6 @@ class ContactBasedReferenceFinder : public rclcpp::Node
 public:
     ContactBasedReferenceFinder();
 
-private: 
-
     /* Start time */
     rclcpp::Time _beginning;
 
@@ -75,7 +73,7 @@ private:
     
 
     /* Callback Functions */
-    void _force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
+    virtual void _force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
     void _vehicle_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
     void _status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg);
 
