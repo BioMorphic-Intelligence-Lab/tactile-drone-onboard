@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import minimize
 
 def rot_x(theta):
     cT = np.cos(theta)
@@ -22,12 +23,24 @@ def rot_z(theta):
                      [ 0,   0,  1]]) 
 
 class AerialManipulator(object):
-    def __init__(self, m, l, base_rot, alignments) -> None:
+    def __init__(self, m, l, base_rot, alignments, K=0.1*np.ones(4), A=0.1*np.ones(4)) -> None:
         self.m = np.array(m)
         self.l = np.array(l)
+        self.K = np.diag(K)
+        self.A = np.array(A)
         self.base_rot = base_rot
         self.alignments = alignments
     
+    def f_pos(self, q) -> np.array:
+        bar = np.array([0,0,1])
+
+        t = (self.l[0] * bar 
+        + self.l[1] * self.alignments[0] @ rot_x(q[0]) @ bar
+        + self.l[2] * self.alignments[0] @ rot_x(q[0]) @ self.alignments[1] @ rot_x(q[1]) @ bar
+        + self.l[3] * self.alignments[0] @ rot_x(q[0]) @ self.alignments[1] @ rot_x(q[1]) @ self.alignments[2] @  rot_x(q[2]) @ bar
+        + self.l[4] * self.alignments[0] @ rot_x(q[0]) @ self.alignments[1] @ rot_x(q[1]) @ self.alignments[2] @  rot_x(q[2]) @ self.alignments[3] @ rot_x(q[3]) @ bar
+        )
+        return t
 
     def f(self, q) -> tuple[np.array, np.array]:
         bar = np.array([0,0,1])
@@ -101,7 +114,7 @@ class AerialManipulator(object):
                     ])
     
     def get_gravity_contribution(self, q):
-        g = np.array([0, 0, -9.81])
+        g = np.array([0, 0, 9.81])
         joints, rots = self.get_joints(q)
         coms = self.get_coms(q) 
 
@@ -113,3 +126,34 @@ class AerialManipulator(object):
                 G[i] = G[i] + np.dot(torque, proj)
         
         return G
+    
+    def get_external_force_contribution(self, q, f):
+        J = self.get_jacobian(q)
+        return J.T @ f
+
+    def get_stiffness_contribution(self, q):
+        return -self.K @ q
+    
+    def get_control_contribution(self, tau):
+        return self.A * tau
+    
+    def find_steady_state(self, f_ext, tau):
+        err = lambda q: np.dot((self.get_gravity_contribution(q)
+                     + self.get_stiffness_contribution(q)
+                     - self.get_external_force_contribution(q, f_ext)
+                     - self.get_control_contribution(tau)).T,
+                     (self.get_gravity_contribution(q)
+                     + self.get_stiffness_contribution(q)
+                     - self.get_external_force_contribution(q, f_ext)
+                     - self.get_control_contribution(tau)))
+        
+        const = lambda q: np.array([-q[1], q[2], -q[3], q[2] + q[1], -q[3] - q[2]])
+        res = minimize(err,np.array([0.0, -0.4, 0.3, -0.2]),constraints={'type':'ineq', 'fun': const})
+        return res
+
+    def find_force(self, q, tau):
+        J = self.get_jacobian(q)
+        G = self.get_gravity_contribution(q)
+        K = self.get_stiffness_contribution(q)
+        A = self.get_control_contribution(tau)
+        return np.linalg.pinv(J.T) @ (G + K - A)
