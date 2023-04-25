@@ -37,6 +37,13 @@ target_include_directories(repeated_contact_based_reference_finder PUBLIC
   $<INSTALL_INTERFACE:include>)
 target_compile_features(repeated_contact_based_reference_finder PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
+add_executable(varying_height_contact_based_reference_finder src/varying_height_contact_based_reference_finder.cpp src/contact_based_reference_finder.cpp)
+ament_target_dependencies(varying_height_contact_based_reference_finder rclcpp geometry_msgs sensor_msgs custom_interfaces std_srvs px4_msgs px4_ros_com Eigen3)
+target_include_directories(varying_height_contact_based_reference_finder PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/planners>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(varying_height_contact_based_reference_finder PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
 add_executable(fake_wrench_publisher src/fake_wrench_publisher.cpp)
 ament_target_dependencies(fake_wrench_publisher rclcpp geometry_msgs)
 
@@ -49,8 +56,9 @@ target_include_directories(base_reference_position_publisher PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/planners>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS contact_based_reference_finder  repeated_contact_based_reference_finder base_reference_position_publisher fake_wrench_publisher ee_position_test
+install(TARGETS contact_based_reference_finder repeated_contact_based_reference_finder varying_height_contact_based_reference_finder base_reference_position_publisher fake_wrench_publisher ee_position_test
   DESTINATION lib/${PROJECT_NAME})
+
 
 ########### Add Launch Directory ########
 install(DIRECTORY
