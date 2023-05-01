@@ -2,7 +2,7 @@ contact_based_reference_finder:
   ros__parameters:
     force_topic: "wrench"
     reference_topic: "ee_reference"
-    init_ref: [0.0, 1.55, 1.6]
+    init_ref: [0.0, 1.6, 1.6]
     alpha: 0.4 # Distance between two reference positions
     robot_params:
       l: [0.025, 0.025, 0.0578, 0.058, 0.045] # Link Length [m]
@@ -36,7 +36,7 @@ varying_height_contact_based_reference_finder:
   ros__parameters:
     force_topic: "wrench"
     reference_topic: "ee_reference"
-    init_ref: [0.0, 1.15, 1.6]
+    init_ref: [0.0, 1.6, 1.5]
     high: 1.7
     low: 1.5
     alpha: 0.4 # Distance between two reference positions

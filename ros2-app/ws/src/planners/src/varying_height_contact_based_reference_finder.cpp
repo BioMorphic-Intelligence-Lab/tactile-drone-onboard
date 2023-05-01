@@ -7,23 +7,35 @@ VaryingHeightContactBasedReferenceFinder::VaryingHeightContactBasedReferenceFind
 
     this->_high = this->get_parameter("high").as_double();
     this->_low = this->get_parameter("low").as_double();
+
+    this->timer_ = this->create_wall_timer(
+      5s, std::bind(&VaryingHeightContactBasedReferenceFinder::timer_callback, this));
+    this->_curr = false;
 }
 
-void VaryingHeightContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
+void VaryingHeightContactBasedReferenceFinder::timer_callback()
 {
-  /* Simply execute the super function */
-  ContactBasedReferenceFinder::_force_callback(msg);
-
-  /* Update the hight reference every 10 seconds between high and low */
-  int seconds = (int)(this->now() - this->_beginning).seconds();
-
-  if((seconds / 10) % 2 == 0)
+  if(this->_curr)
   {
-    this->_reference(2) = this->_high;
+    this->_height = this->_low;
+    RCLCPP_INFO(this->get_logger(), "Low");
   }
   else
   {
-    this->_reference(2) = this->_low;
+    this->_height = this->_high;
+    RCLCPP_INFO(this->get_logger(), "High");
   }
 
+  this->_curr = !this->_curr;
+
+}
+
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+    
+  rclcpp::spin(std::make_shared<VaryingHeightContactBasedReferenceFinder>());
+  rclcpp::shutdown();
+  return 0;
 }

@@ -30,7 +30,7 @@ public:
     Eigen::Quaterniond _q;
 
     /* Step between references and current reference yaw*/
-    double _alpha, _reference_yaw;
+    double _alpha, _reference_yaw, _height;
 
     /* PX4 navigation state */
     uint8_t _nav_state;

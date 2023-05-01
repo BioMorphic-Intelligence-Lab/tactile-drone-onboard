@@ -6,7 +6,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     using namespace std::chrono_literals;
 
     /* Declare all the parameters */
-    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.15, 1.6});
+    this->declare_parameter("init_reference", std::vector<double>{0.0, 1.6, 1.5});
     this->declare_parameter("force_topic", "wrench");
     this->declare_parameter("reference_topic", "ee_reference");
     this->declare_parameter("alpha", 0.4);
@@ -23,6 +23,7 @@ ContactBasedReferenceFinder::ContactBasedReferenceFinder()
     this->_reference = {0.0, 0.0, 1.5};
     this->_reference_yaw = 0;
     this->_alpha  = this->get_parameter("alpha").as_double();
+    this->_height = 1.6;
     this->_nav_state = px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_MAX;
 
     /* Get the robot params */
@@ -113,7 +114,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
   /* For the first 15 seconds we just take of and hover */
   if(dt < 15)
   {
-      this->_reference = {0.0, 0.0, 1.5};
+      this->_reference = {0.0, 0.0, this->_height};
       this->_reference_yaw = 0.0;
   }
   /* After that we update the reference according to contact */
@@ -141,15 +142,15 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     Eigen::Vector3d force;
     force << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z;
 
-    if(error < 0.3 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 30 percent of the step size)
-       yaw_error < 5 * M_PI * 0.005556  // Only update when the reference yaw is sufficiently achieved (within 55 Degree)
+    if(error < 0.30 * this->_alpha && // Only update when the reference position is sufficiently achieved (within 40 percent of the step size)
+       yaw_error < 5 * M_PI * 0.005556  // Only update when the reference yaw is sufficiently achieved (within 5 Degrees)
       )  
     {
 
-      if(force.norm() < 0.2) // Only do the main update when the force magnitude is enough)
+      if(force.norm() < 0.3) // Only do the main update when the force magnitude is enough)
       {
         RCLCPP_INFO(this->get_logger(), "No force detected - Moving forward");
-        Eigen::Vector3d change = 0.1 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+        Eigen::Vector3d change = 0.05 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
         change(2) = 0.0;
         this->_reference += change;
       }
@@ -165,7 +166,7 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
         /* The yaw is even more subsceptible to noise,
         * hence we update it only once we experience
         * a larger lateral force */
-        if(fabs(force.x()) > 0.1 && force.norm() > 0.1)
+        if(force.norm() >= 0.6)
         {
           /* Compute the reference yaw 
             * Angle between a vectors and the frame x axis: atan2(f.y / f.x)
@@ -192,12 +193,22 @@ void ContactBasedReferenceFinder::_force_callback(const geometry_msgs::msg::Wren
     else if(force.norm() > 0.7)
     {
       RCLCPP_INFO(this->get_logger(), "Too much force detected - Moving backwards");
-      Eigen::Vector3d change = -0.1 * this->_alpha * (this->_q.toRotationMatrix() * Eigen::Vector3d::UnitY());
+      Eigen::Vector3d change = -0.01 * this->_alpha * (rot_z(this->_reference_yaw) * Eigen::Vector3d::UnitY());
+      change(2) = 0.0;
+      this->_reference += change;
+    }
+    else if(yaw_error > 10 * M_PI * 0.00555555555)
+    {
+      RCLCPP_INFO(this->get_logger(), "Yaw Error too big - Moving backwards");
+      Eigen::Vector3d change = -0.01 * this->_alpha * (rot_z(this->_reference_yaw) * Eigen::Vector3d::UnitY());
       change(2) = 0.0;
       this->_reference += change;
     }
   }
   
+
+  /* Adjust the height */
+  this->_reference(2) = this->_height;
 
   /* Get the current time stamp */
   rclcpp::Time now = this->now();
@@ -350,11 +361,11 @@ double ContactBasedReferenceFinder::yaw_from_quat(Eigen::Quaterniond quat)
 }
 
 
-int main(int argc, char ** argv)
+/*int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
     
   rclcpp::spin(std::make_shared<ContactBasedReferenceFinder>());
   rclcpp::shutdown();
   return 0;
-}
+}*/
